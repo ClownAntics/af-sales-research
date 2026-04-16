@@ -69,36 +69,28 @@ export function DesignCard({ design }: { design: Design }) {
   const rate = unitsPerYear(design);
 
   const variants = variantSkus(design);
+  const gardenVariant = variants.find((v) => v.sku.startsWith("AFGF")) || variants[0];
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      {/* Image strip — one panel per variant (garden / house / banner) */}
-      <div className="flex bg-zinc-50">
-        {variants.map((v) => (
-          <a
-            key={v.sku}
-            href={v.imageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Open ${v.sku}${v.label ? ` (${v.label})` : ""} image`}
-            className="relative aspect-square flex-1 group"
-          >
-            <Image
-              src={v.imageUrl}
-              alt={`${design.design_name || design.design_family}${v.label ? ` — ${v.label}` : ""}`}
-              fill
-              sizes="(max-width: 768px) 25vw, (max-width: 1200px) 12vw, 100px"
-              className="object-cover group-hover:opacity-90 transition-opacity"
-              unoptimized
-            />
-            {v.label && (
-              <span className="absolute bottom-1 left-1 px-1 py-0.5 text-[9px] uppercase tracking-wide bg-black/60 text-white rounded">
-                {v.label}
-              </span>
-            )}
-          </a>
-        ))}
-      </div>
+      {/* Single image — garden flag only. Other variants are still listed as
+          clickable SKU links below. */}
+      <a
+        href={gardenVariant.imageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`Open ${gardenVariant.sku} image`}
+        className="block aspect-square relative bg-zinc-50 group"
+      >
+        <Image
+          src={gardenVariant.imageUrl}
+          alt={design.design_name || design.design_family}
+          fill
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 200px"
+          className="object-cover group-hover:opacity-90 transition-opacity"
+          unoptimized
+        />
+      </a>
       <div className="p-3 space-y-0.5">
         <div className="text-sm leading-snug line-clamp-2 min-h-[2.5em]">
           {design.design_name || design.design_family}
@@ -116,7 +108,6 @@ export function DesignCard({ design }: { design: Design }) {
               >
                 {v.sku}
               </a>
-              {v.label && <span className="text-muted-2"> {v.label}</span>}
             </span>
           ))}
         </div>

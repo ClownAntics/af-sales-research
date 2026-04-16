@@ -3,87 +3,119 @@
 import type { Design } from "@/lib/types";
 
 const TOP_N = 12;
+const MIN_DESIGNS = 8; // ignore slices too small to read into
 
-function sliceCounts(
+interface SliceRow {
+  label: string;
+  designs: number;
+  hit: number;
+  solid: number;
+  winPct: number;
+}
+
+function sliceWinPct(
   designs: Design[],
   field: "theme_names" | "sub_themes",
-): { label: string; count: number }[] {
-  const map = new Map<string, number>();
+): SliceRow[] {
+  const map = new Map<string, { designs: number; hit: number; solid: number }>();
   for (const d of designs) {
-    for (const t of (d[field] || []) as string[]) {
-      map.set(t, (map.get(t) || 0) + 1);
+    for (const label of (d[field] || []) as string[]) {
+      let r = map.get(label);
+      if (!r) {
+        r = { designs: 0, hit: 0, solid: 0 };
+        map.set(label, r);
+      }
+      r.designs++;
+      if (d.classification === "hit") r.hit++;
+      if (d.classification === "solid") r.solid++;
     }
   }
-  return Array.from(map.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, TOP_N);
+  const rows: SliceRow[] = [];
+  for (const [label, r] of map.entries()) {
+    if (r.designs < MIN_DESIGNS) continue;
+    rows.push({
+      label,
+      designs: r.designs,
+      hit: r.hit,
+      solid: r.solid,
+      winPct: ((r.hit + r.solid) / r.designs) * 100,
+    });
+  }
+  return rows;
 }
 
 export function PatternCharts({ designs }: { designs: Design[] }) {
-  // Compare what works (Hits) vs what flops (Weak + Dead). Use the cleaned
-  // FL Themes taxonomy (theme_names / sub_themes), NOT raw shopify_tags —
-  // raw tags include admin junk like "in-stock", "Decorative", "Printed".
-  const hits = designs.filter((d) => d.classification === "hit");
-  const flops = designs.filter(
-    (d) => d.classification === "weak" || d.classification === "dead",
-  );
+  // Compute once per slice — then sort high or low for the four panels.
+  const subThemes = sliceWinPct(designs, "sub_themes");
+  const themes = sliceWinPct(designs, "theme_names");
+
+  const topBy = (rows: SliceRow[]) =>
+    [...rows].sort((a, b) => b.winPct - a.winPct).slice(0, TOP_N);
+  const bottomBy = (rows: SliceRow[]) =>
+    [...rows].sort((a, b) => a.winPct - b.winPct).slice(0, TOP_N);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Chart
-        title="Top sub-themes in HITS (100+ units)"
-        data={sliceCounts(hits, "sub_themes")}
-        color="bg-emerald-600"
-      />
-      <Chart
-        title="Top themes in HITS"
-        data={sliceCounts(hits, "theme_names")}
-        color="bg-emerald-600"
-      />
-      <Chart
-        title="Top sub-themes in WEAK + DEAD"
-        data={sliceCounts(flops, "sub_themes")}
-        color="bg-red-600"
-      />
-      <Chart
-        title="Top themes in WEAK + DEAD"
-        data={sliceCounts(flops, "theme_names")}
-        color="bg-red-600"
-      />
+    <div className="space-y-3">
+      <div className="text-xs text-muted">
+        Win % = (Hit + Solid) ÷ designs in that slice. Slices with fewer than {MIN_DESIGNS} designs are excluded so percentages aren&apos;t skewed by tiny samples.
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Chart
+          title="Best sub-themes by Win %"
+          rows={topBy(subThemes)}
+          color="bg-emerald-600"
+        />
+        <Chart
+          title="Best themes by Win %"
+          rows={topBy(themes)}
+          color="bg-emerald-600"
+        />
+        <Chart
+          title="Worst sub-themes by Win %"
+          rows={bottomBy(subThemes)}
+          color="bg-red-600"
+        />
+        <Chart
+          title="Worst themes by Win %"
+          rows={bottomBy(themes)}
+          color="bg-red-600"
+        />
+      </div>
     </div>
   );
 }
 
 function Chart({
   title,
-  data,
+  rows,
   color,
 }: {
   title: string;
-  data: { label: string; count: number }[];
+  rows: SliceRow[];
   color: string;
 }) {
-  const max = Math.max(1, ...data.map((d) => d.count));
   return (
     <div className="bg-card border border-border rounded-lg p-4">
       <div className="text-sm font-medium mb-3">{title}</div>
-      {data.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="text-xs text-muted py-6 text-center">no data</div>
       ) : (
         <div className="space-y-1.5">
-          {data.map((d) => (
-            <div key={d.label} className="flex items-center gap-2 text-xs">
-              <div className="w-32 truncate text-muted shrink-0" title={d.label}>
-                {d.label}
+          {rows.map((r) => (
+            <div key={r.label} className="flex items-center gap-2 text-xs">
+              <div className="w-40 truncate text-muted shrink-0" title={r.label}>
+                {r.label}
               </div>
               <div className="flex-1 bg-zinc-100 rounded-sm h-4 relative overflow-hidden">
                 <div
                   className={`h-full ${color}`}
-                  style={{ width: `${(d.count / max) * 100}%` }}
+                  style={{ width: `${Math.max(2, r.winPct)}%` }}
                 />
               </div>
-              <div className="w-10 text-right tabular-nums">{d.count}</div>
+              <div className="w-20 text-right tabular-nums text-muted">
+                <span className="text-foreground">{r.winPct.toFixed(0)}%</span>
+                <span className="text-muted-2"> · {r.designs}</span>
+              </div>
             </div>
           ))}
         </div>

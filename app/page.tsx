@@ -68,11 +68,32 @@ export default function Home() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-6 w-full">
-      <header>
-        <h1 className="text-2xl font-medium tracking-tight">AF sales research</h1>
-        <p className="text-sm text-muted">
-          Which AF designs succeeded since 2023, and what patterns explain why?
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-medium tracking-tight">AF sales research</h1>
+          <p className="text-sm text-muted">
+            Which AF designs succeeded since 2023, and what patterns explain why?
+          </p>
+        </div>
+        <nav className="flex gap-3 text-xs text-muted shrink-0 pt-1">
+          <a
+            href="https://github.com/ClownAntics/af-sales-research/blob/main/docs/USER_GUIDE.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground hover:underline"
+          >
+            User guide
+          </a>
+          <span className="text-muted-2">·</span>
+          <a
+            href="https://github.com/ClownAntics/af-sales-research/blob/main/docs/DATA_UPDATE.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground hover:underline"
+          >
+            Data updates
+          </a>
+        </nav>
       </header>
 
       <YearTabs value={filters.year} onChange={(year) => update({ year })} />

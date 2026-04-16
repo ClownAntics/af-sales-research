@@ -8,7 +8,8 @@ import {
   type SeasonalEvent,
 } from "@/lib/calendar";
 
-const HORIZON_DAYS = 180;
+const HORIZON_DAYS = 210;
+const CLOSE_DAYS = 30; // events within this many days get the amber "close" badge
 const RECENT_DAYS = 365;
 const UNDERSERVED_MIN_DESIGNS = 5;
 const UNDERSERVED_MIN_WIN_PCT = 25;
@@ -196,7 +197,7 @@ function EventCard({ stat, onView }: { stat: EventStat; onView: () => void }) {
     year: "numeric",
     timeZone: "UTC",
   });
-  const isClose = stat.daysAway <= 60;
+  const isClose = stat.daysAway <= CLOSE_DAYS;
   const tooFew = stat.freshDesigns < 3;
 
   return (

@@ -25,16 +25,17 @@ interface VariantSku {
 function variantSkus(design: Design): VariantSku[] {
   const body = design.design_family.replace(/^AF/, "");
   const types = design.product_types || [];
-  const out: VariantSku[] = [];
   const mk = (sku: string, label: string): VariantSku => ({
     sku,
     label,
     imageUrl: `https://images.clownantics.com/CA_resize_500_500/${sku.toLowerCase()}.jpg`,
   });
-  if (types.includes("garden")) out.push(mk(`AFGF${body}`, ""));
-  if (types.includes("house")) out.push(mk(`AFHF${body}`, "house"));
+  // Always show garden + house — both variants exist in the catalog for the
+  // vast majority of designs, even when only one has recorded sales. Broken
+  // images on the rare exception are an acceptable trade for completeness.
+  // Banner only when product_types explicitly includes it (rare).
+  const out: VariantSku[] = [mk(`AFGF${body}`, ""), mk(`AFHF${body}`, "house")];
   if (types.includes("garden-banner")) out.push(mk(`AFGB${body}`, "banner"));
-  if (out.length === 0) out.push(mk(design.design_family, ""));
   return out;
 }
 

@@ -19,6 +19,8 @@ export interface SeasonalEvent {
   /**
    * Theme matchers — a design counts as "relevant" if any of its
    * theme_names / sub_themes / sub_sub_themes / shopify_tags match.
+   * The first matcher is also the "primary" — used by the dashboard's
+   * "View designs" link to switch to the grid view filtered on this event.
    */
   matchers: ThemeMatcher[];
 }
@@ -26,6 +28,33 @@ export interface SeasonalEvent {
 export interface ThemeMatcher {
   field: "theme_names" | "sub_themes" | "sub_sub_themes" | "shopify_tags";
   value: string;
+}
+
+/**
+ * Maps a matcher onto the dashboard's filter state. Used by the
+ * "View designs" button on each event card. Returns the partial filter
+ * update that page.tsx should apply.
+ */
+export function matcherToFilter(m: ThemeMatcher): {
+  themeName?: string;
+  subTheme?: string;
+  subSubTheme?: string;
+  tag?: string;
+} {
+  switch (m.field) {
+    case "theme_names":
+      return { themeName: m.value };
+    case "sub_themes":
+      return { themeName: m.value.split(":")[0].trim(), subTheme: m.value };
+    case "sub_sub_themes": {
+      const parts = m.value.split(":").map((s) => s.trim());
+      const themeName = parts[0];
+      const subTheme = `${parts[0]}: ${parts[1]}`;
+      return { themeName, subTheme, subSubTheme: m.value };
+    }
+    case "shopify_tags":
+      return { tag: m.value };
+  }
 }
 
 // ---------- date helpers ----------

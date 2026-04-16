@@ -109,7 +109,7 @@ export default function Home() {
       ) : data && filters.view === "theme-summary" ? (
         <ThemeSummary designs={data.designs} filters={filters} />
       ) : data && filters.view === "planning" ? (
-        <PlanningView designs={data.designs} />
+        <PlanningView designs={data.designs} onApplyFilter={update} />
       ) : data ? (
         <DesignGrid designs={data.designs} />
       ) : null}

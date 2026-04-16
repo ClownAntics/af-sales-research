@@ -12,6 +12,19 @@ function formatMonthYear(iso: string | null): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+// Build the canonical product SKU from a design family by re-injecting the
+// product type code. design_family `AFMS0278` + product 'garden' → `AFGFMS0278`.
+// Prefers garden, then house, then banner — falls back to the family code if
+// product types are unknown.
+function canonicalSku(design: Design): string {
+  const body = design.design_family.replace(/^AF/, "");
+  const types = design.product_types || [];
+  if (types.includes("garden")) return `AFGF${body}`;
+  if (types.includes("house")) return `AFHF${body}`;
+  if (types.includes("garden-banner")) return `AFGB${body}`;
+  return design.design_family;
+}
+
 // Compute units sold per year of catalog age.
 // Start clock = catalog_created_date (preferred) or first_sale_date.
 // Floor at 30 days so newly-added designs don't divide by ~zero and explode.
@@ -62,7 +75,7 @@ export function DesignCard({ design }: { design: Design }) {
           {design.design_name || design.design_family}
         </div>
         <div className="text-[11px] font-mono text-muted-2">
-          {design.design_family}
+          {canonicalSku(design)}
         </div>
         <div className="flex justify-between text-xs text-muted">
           <span>

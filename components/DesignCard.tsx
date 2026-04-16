@@ -12,18 +12,25 @@ function formatMonthYear(iso: string | null): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-// Build the canonical product SKU from a design family by re-injecting the
-// product type code. design_family `AFMS0278` + product 'garden' → `AFGFMS0278`.
-// Prefers garden, then house, then banner — falls back to the family code if
-// product types are unknown.
-function canonicalSku(design: Design): string {
+// Build every variant SKU we know exists for a design family. Garden first,
+// then house, then banner — that's the natural reading order on the tile.
+// Each entry has the SKU and a short label ("" for garden = the default).
+interface VariantSku {
+  sku: string;
+  label: string;
+}
+function variantSkus(design: Design): VariantSku[] {
   const body = design.design_family.replace(/^AF/, "");
   const types = design.product_types || [];
-  if (types.includes("garden")) return `AFGF${body}`;
-  if (types.includes("house")) return `AFHF${body}`;
-  if (types.includes("garden-banner")) return `AFGB${body}`;
-  return design.design_family;
+  const out: VariantSku[] = [];
+  if (types.includes("garden")) out.push({ sku: `AFGF${body}`, label: "" });
+  if (types.includes("house")) out.push({ sku: `AFHF${body}`, label: "house" });
+  if (types.includes("garden-banner")) out.push({ sku: `AFGB${body}`, label: "banner" });
+  if (out.length === 0) out.push({ sku: design.design_family, label: "" });
+  return out;
 }
+
+const JF_ADMIN_SEARCH = "https://admin.shopify.com/store/justforfunflags/products?query=";
 
 // Compute units sold per year of catalog age.
 // Start clock = catalog_created_date (preferred) or first_sale_date.
@@ -75,7 +82,21 @@ export function DesignCard({ design }: { design: Design }) {
           {design.design_name || design.design_family}
         </div>
         <div className="text-[11px] font-mono text-muted-2">
-          {canonicalSku(design)}
+          {variantSkus(design).map((v, i) => (
+            <span key={v.sku}>
+              {i > 0 && <span className="mx-1 text-muted-2">/</span>}
+              <a
+                href={`${JF_ADMIN_SEARCH}${v.sku}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground hover:underline"
+                title={`Open ${v.sku} in JF Shopify admin`}
+              >
+                {v.sku}
+              </a>
+              {v.label && <span className="text-muted-2"> {v.label}</span>}
+            </span>
+          ))}
         </div>
         <div className="flex justify-between text-xs text-muted">
           <span>

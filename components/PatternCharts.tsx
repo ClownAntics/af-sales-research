@@ -4,10 +4,13 @@ import type { Design } from "@/lib/types";
 
 const TOP_N = 12;
 
-function tagCounts(designs: Design[]): { label: string; count: number }[] {
+function sliceCounts(
+  designs: Design[],
+  field: "theme_names" | "sub_themes",
+): { label: string; count: number }[] {
   const map = new Map<string, number>();
   for (const d of designs) {
-    for (const t of d.shopify_tags || []) {
+    for (const t of (d[field] || []) as string[]) {
       map.set(t, (map.get(t) || 0) + 1);
     }
   }
@@ -17,20 +20,10 @@ function tagCounts(designs: Design[]): { label: string; count: number }[] {
     .slice(0, TOP_N);
 }
 
-function productTypeMix(designs: Design[]): { label: string; count: number }[] {
-  const map = new Map<string, number>();
-  for (const d of designs) {
-    for (const p of d.product_types || []) {
-      map.set(p, (map.get(p) || 0) + 1);
-    }
-  }
-  return Array.from(map.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
-}
-
 export function PatternCharts({ designs }: { designs: Design[] }) {
-  // Compare what works (Hits) vs what flops (Weak + Dead).
+  // Compare what works (Hits) vs what flops (Weak + Dead). Use the cleaned
+  // FL Themes taxonomy (theme_names / sub_themes), NOT raw shopify_tags —
+  // raw tags include admin junk like "in-stock", "Decorative", "Printed".
   const hits = designs.filter((d) => d.classification === "hit");
   const flops = designs.filter(
     (d) => d.classification === "weak" || d.classification === "dead",
@@ -38,20 +31,24 @@ export function PatternCharts({ designs }: { designs: Design[] }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Chart title="Top tags in HITS (100+ units)" data={tagCounts(hits)} color="bg-emerald-600" />
       <Chart
-        title="Product type mix in HITS"
-        data={productTypeMix(hits)}
+        title="Top sub-themes in HITS (100+ units)"
+        data={sliceCounts(hits, "sub_themes")}
         color="bg-emerald-600"
       />
       <Chart
-        title="Top tags in WEAK + DEAD"
-        data={tagCounts(flops)}
+        title="Top themes in HITS"
+        data={sliceCounts(hits, "theme_names")}
+        color="bg-emerald-600"
+      />
+      <Chart
+        title="Top sub-themes in WEAK + DEAD"
+        data={sliceCounts(flops, "sub_themes")}
         color="bg-red-600"
       />
       <Chart
-        title="Product type mix in WEAK + DEAD"
-        data={productTypeMix(flops)}
+        title="Top themes in WEAK + DEAD"
+        data={sliceCounts(flops, "theme_names")}
         color="bg-red-600"
       />
     </div>

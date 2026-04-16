@@ -1,6 +1,12 @@
 "use client";
 
-const YEARS = ["all", "2023", "2024", "2025", "2026"] as const;
+const YEARS = ["all", "pre-2023", "2023", "2024", "2025", "2026"] as const;
+
+function labelFor(y: string): string {
+  if (y === "all") return "All";
+  if (y === "pre-2023") return "Pre-2023";
+  return y;
+}
 
 export function YearTabs({
   value,
@@ -24,7 +30,7 @@ export function YearTabs({
                 : "border-transparent text-muted hover:text-foreground",
             ].join(" ")}
           >
-            {y === "all" ? "All" : y}
+            {labelFor(y)}
           </button>
         );
       })}

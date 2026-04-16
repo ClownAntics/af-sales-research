@@ -60,12 +60,10 @@ function formatRate(rate: number | null): string {
 }
 
 export function DesignCard({ design }: { design: Design }) {
-  // Real first-sale date wins; otherwise fall back to the catalog Date Created.
-  // A "★" indicates "no sales yet — date is when the SKU was added to the catalog".
-  const displayDate =
-    design.first_sale_date || design.catalog_created_date;
-  const isCatalogOnly =
-    !design.first_sale_date && !!design.catalog_created_date;
+  // Always show catalog Date Created — the design's actual creation date.
+  // First-sale date is misleading (it's clamped to the start of our 3-year
+  // sales export window for any design that was already selling pre-2023).
+  const displayDate = design.catalog_created_date;
   const rate = unitsPerYear(design);
 
   const variants = variantSkus(design);
@@ -118,11 +116,7 @@ export function DesignCard({ design }: { design: Design }) {
               <span className="text-muted-2"> · {formatRate(rate)}</span>
             )}
           </span>
-          <span
-            title={isCatalogOnly ? "Catalog Date Created — no sales yet" : "First sale"}
-            className={isCatalogOnly ? "italic text-muted-2" : ""}
-          >
-            {isCatalogOnly ? "★ " : ""}
+          <span title="Catalog Date Created">
             {formatMonthYear(displayDate)}
           </span>
         </div>

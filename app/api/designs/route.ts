@@ -75,7 +75,9 @@ type Q = {
 
 function applyFilters(q: Q, f: BaseFilters): Q {
   let r = q;
-  if (f.year !== "all") {
+  if (f.year === "pre-2023") {
+    r = r.lte("effective_date", "2022-12-31");
+  } else if (f.year !== "all") {
     r = r.gte("effective_date", `${f.year}-01-01`).lte("effective_date", `${f.year}-12-31`);
   }
   if (f.tag !== "all") r = r.contains("shopify_tags", [f.tag]);

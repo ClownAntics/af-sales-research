@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { Design, DesignFilters } from "@/lib/types";
 
 type GroupBy = "theme_names" | "sub_themes" | "sub_sub_themes";
-type SortKey = "label" | "designs" | "hit_pct" | "units_total" | "units_avg";
+type SortKey = "label" | "designs" | "win_pct" | "units_total" | "units_avg";
 
 interface Row {
   label: string;
@@ -16,7 +16,7 @@ interface Row {
   dead: number;
   units_total: number;
   units_avg: number;
-  hit_pct: number;
+  win_pct: number; // (hit + solid) / designs × 100 — share of designs that genuinely sell
 }
 
 /**
@@ -127,8 +127,8 @@ export function ThemeSummary({
                 <th className="px-3 py-2 text-right">OK</th>
                 <th className="px-3 py-2 text-right">Weak</th>
                 <th className="px-3 py-2 text-right">Dead</th>
-                <Th onClick={() => onSort("hit_pct")} active={sortKey === "hit_pct"} desc={sortDesc}>
-                  Hit %
+                <Th onClick={() => onSort("win_pct")} active={sortKey === "win_pct"} desc={sortDesc}>
+                  Win %
                 </Th>
                 <Th onClick={() => onSort("units_total")} active={sortKey === "units_total"} desc={sortDesc}>
                   Units
@@ -148,7 +148,7 @@ export function ThemeSummary({
                   <td className="px-3 py-2 text-right tabular-nums text-amber-600">{r.ok || ""}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-orange-600">{r.weak || ""}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-red-600">{r.dead || ""}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{r.hit_pct.toFixed(1)}%</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{r.win_pct.toFixed(1)}%</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.units_total.toLocaleString()}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.units_avg.toFixed(0)}</td>
                 </tr>
@@ -224,7 +224,7 @@ function buildRows(
           dead: 0,
           units_total: 0,
           units_avg: 0,
-          hit_pct: 0,
+          win_pct: 0,
         };
         byLabel.set(label, r);
       }
@@ -252,7 +252,7 @@ function buildRows(
 
   for (const r of byLabel.values()) {
     r.units_avg = r.designs > 0 ? r.units_total / r.designs : 0;
-    r.hit_pct = r.designs > 0 ? (r.hit / r.designs) * 100 : 0;
+    r.win_pct = r.designs > 0 ? ((r.hit + r.solid) / r.designs) * 100 : 0;
   }
   return Array.from(byLabel.values());
 }

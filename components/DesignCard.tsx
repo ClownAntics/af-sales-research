@@ -14,19 +14,27 @@ function formatMonthYear(iso: string | null): string {
 
 // Build every variant SKU we know exists for a design family. Garden first,
 // then house, then banner — that's the natural reading order on the tile.
-// Each entry has the SKU and a short label ("" for garden = the default).
+// Each entry has the SKU, a short label ("" for garden = default), and the
+// full-res image URL (constructed from the SKU using the same pattern
+// TeamDesk's `imgLocationFTP500` column uses).
 interface VariantSku {
   sku: string;
   label: string;
+  imageUrl: string;
 }
 function variantSkus(design: Design): VariantSku[] {
   const body = design.design_family.replace(/^AF/, "");
   const types = design.product_types || [];
   const out: VariantSku[] = [];
-  if (types.includes("garden")) out.push({ sku: `AFGF${body}`, label: "" });
-  if (types.includes("house")) out.push({ sku: `AFHF${body}`, label: "house" });
-  if (types.includes("garden-banner")) out.push({ sku: `AFGB${body}`, label: "banner" });
-  if (out.length === 0) out.push({ sku: design.design_family, label: "" });
+  const mk = (sku: string, label: string): VariantSku => ({
+    sku,
+    label,
+    imageUrl: `https://images.clownantics.com/CA_resize_500_500/${sku.toLowerCase()}.jpg`,
+  });
+  if (types.includes("garden")) out.push(mk(`AFGF${body}`, ""));
+  if (types.includes("house")) out.push(mk(`AFHF${body}`, "house"));
+  if (types.includes("garden-banner")) out.push(mk(`AFGB${body}`, "banner"));
+  if (out.length === 0) out.push(mk(design.design_family, ""));
   return out;
 }
 
@@ -59,30 +67,43 @@ export function DesignCard({ design }: { design: Design }) {
     !design.first_sale_date && !!design.catalog_created_date;
   const rate = unitsPerYear(design);
 
+  const variants = variantSkus(design);
+
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="aspect-square relative bg-zinc-50">
-        {design.image_url ? (
-          <Image
-            src={design.image_url}
-            alt={design.design_name || design.design_family}
-            fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 200px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-2">
-            no image
-          </div>
-        )}
+      {/* Image strip — one panel per variant (garden / house / banner) */}
+      <div className="flex bg-zinc-50">
+        {variants.map((v) => (
+          <a
+            key={v.sku}
+            href={v.imageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${v.sku}${v.label ? ` (${v.label})` : ""} image`}
+            className="relative aspect-square flex-1 group"
+          >
+            <Image
+              src={v.imageUrl}
+              alt={`${design.design_name || design.design_family}${v.label ? ` — ${v.label}` : ""}`}
+              fill
+              sizes="(max-width: 768px) 25vw, (max-width: 1200px) 12vw, 100px"
+              className="object-cover group-hover:opacity-90 transition-opacity"
+              unoptimized
+            />
+            {v.label && (
+              <span className="absolute bottom-1 left-1 px-1 py-0.5 text-[9px] uppercase tracking-wide bg-black/60 text-white rounded">
+                {v.label}
+              </span>
+            )}
+          </a>
+        ))}
       </div>
       <div className="p-3 space-y-0.5">
         <div className="text-sm leading-snug line-clamp-2 min-h-[2.5em]">
           {design.design_name || design.design_family}
         </div>
         <div className="text-[11px] font-mono text-muted-2">
-          {variantSkus(design).map((v, i) => (
+          {variants.map((v, i) => (
             <span key={v.sku}>
               {i > 0 && <span className="mx-1 text-muted-2">/</span>}
               <a

@@ -7,6 +7,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { DesignGrid } from "@/components/DesignGrid";
 import { PatternCharts } from "@/components/PatternCharts";
 import { ThemeSummary } from "@/components/ThemeSummary";
+import { PlanningView } from "@/components/PlanningView";
 import type {
   DesignFilters,
   DesignsResponse,
@@ -107,6 +108,8 @@ export default function Home() {
         <PatternCharts designs={data.designs} />
       ) : data && filters.view === "theme-summary" ? (
         <ThemeSummary designs={data.designs} filters={filters} />
+      ) : data && filters.view === "planning" ? (
+        <PlanningView designs={data.designs} />
       ) : data ? (
         <DesignGrid designs={data.designs} />
       ) : null}

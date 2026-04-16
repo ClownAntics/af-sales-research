@@ -11,6 +11,7 @@ const VIEWS: { value: ViewFilter; label: string }[] = [
   { value: "dead", label: "Dead" },
   { value: "patterns", label: "Patterns" },
   { value: "theme-summary", label: "Theme summary" },
+  { value: "planning", label: "Planning" },
 ];
 
 export function FilterBar({

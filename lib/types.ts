@@ -53,7 +53,8 @@ export type ViewFilter =
   | "weak"
   | "dead"
   | "patterns"
-  | "theme-summary";
+  | "theme-summary"
+  | "planning";
 
 export interface DesignFilters {
   year: string;         // 'all' | '2023' | '2024' | '2025' | '2026'

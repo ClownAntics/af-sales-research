@@ -19,8 +19,6 @@ interface Row {
   hit_pct: number;
 }
 
-const NONE_LABEL = "(none)";
-
 /**
  * Auto-drill-down logic based on what's selected in the filter bar:
  *   nothing selected       → group by top-level themes (Beaches & Nautical, Birds, …)
@@ -206,14 +204,13 @@ function buildRows(
 
   for (const d of designs) {
     const labels = (d[groupBy] || []) as string[];
-    const buckets = labels.length === 0 ? [NONE_LABEL] : labels;
-    for (const label of buckets) {
+    // Designs with no themes at this level are simply skipped — no "(none)"
+    // bucket. They still contribute to the overall design count.
+    if (labels.length === 0) continue;
+    for (const label of labels) {
       // Apply parent-filter constraint.
       if (exact && label !== exact) continue;
       if (prefix && !label.startsWith(`${prefix}: `)) continue;
-      // When showing top-level themes, also drop the (none) label if filters
-      // are active — those designs aren't in the selected theme tree.
-      if (label === NONE_LABEL && (prefix || exact)) continue;
 
       let r = byLabel.get(label);
       if (!r) {

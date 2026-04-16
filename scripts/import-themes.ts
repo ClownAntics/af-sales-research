@@ -31,6 +31,11 @@ interface ThemeEntry {
   subSubTheme: string | null;
 }
 
+// Top-level themes to drop from the analysis. These are admin/structural
+// categories (the isBusinessTheme=True bucket in the FL Themes export), not
+// design themes. Drop everything under them — at every hierarchy level.
+const EXCLUDED_TOP_LEVELS = new Set(["Business", "Features", "Size"]);
+
 function normTag(t: string): string {
   // Tags are matched case-insensitively, with hyphens/spaces collapsed so
   // "beaches-nautical" matches "Beaches-Nautical" matches "Beaches Nautical".
@@ -57,6 +62,7 @@ async function main() {
     const subTheme = (r["Sub Theme"] || "").trim() || null;
     const subSubTheme = (r["Sub Sub Theme"] || "").trim() || null;
     if (!name) continue;
+    if (EXCLUDED_TOP_LEVELS.has(name)) continue;
     lookup.set(normTag(searchTerm), { level, name, subTheme, subSubTheme });
   }
   console.log(`Loaded ${themeRows} theme rows → ${lookup.size} unique search terms.\n`);

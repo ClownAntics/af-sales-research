@@ -42,3 +42,5 @@ next-env.d.ts
 
 # local CSV data (kept outside repo)
 /data/
+
+.vercel

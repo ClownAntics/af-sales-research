@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AF Sales Research
 
-## Getting Started
+Internal dashboard answering: **Which AF designs succeeded since 2023, and what patterns explain why?**
 
-First, run the development server:
+Stack: Next.js 16 (App Router) + Tailwind v4 + Supabase. Visual target and SKU rules live in [CLAUDE.md](./CLAUDE.md).
+
+## One-time setup
+
+1. **Create a Supabase project** at [supabase.com](https://supabase.com).
+2. In the Supabase SQL editor, run [`supabase/schema.sql`](./supabase/schema.sql).
+3. Copy `.env.example` → `.env.local` and fill in:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...        # from API settings → anon public
+   SUPABASE_SERVICE_ROLE_KEY=eyJ...            # from API settings → service_role (NEVER ship to browser)
+   ```
+
+## Load data
+
+Run in this order:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx tsx scripts/import-teamdesk.ts        # ~90k rows → designs + sku_variants
+npx tsx scripts/import-jf-tags.ts         # adds shopify_tags, deletes Ukraine designs
+npx tsx scripts/classify.ts               # sets classification + has_* flags
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+CSV paths default to the absolute paths in the parent docs folder. Override by passing a path arg.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Faster classify**: open `scripts/classify.ts` — the bottom of the file has equivalent SQL you can paste directly into the Supabase SQL editor.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Run
 
-## Learn More
+```bash
+npm run dev          # http://localhost:3000
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+vercel link
+vercel env add NEXT_PUBLIC_SUPABASE_URL
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+# do NOT add the service-role key to Vercel — it's only used by local import scripts
+vercel deploy --prod
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Then enable Vercel password protection in project settings (Phase 1 auth).
 
-## Deploy on Vercel
+## Project layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+af-sales-research/
+├── app/
+│   ├── api/designs/route.ts    # GET /api/designs?year=&tag=&productType=&view=
+│   ├── layout.tsx
+│   └── page.tsx                # client dashboard
+├── components/                 # YearTabs, SummaryCards, FilterBar, DesignGrid, DesignCard, PatternCharts
+├── lib/
+│   ├── sku-parser.ts           # pure parser — see CLAUDE.md for rules
+│   ├── supabase.ts             # anon-key client (browser + API route)
+│   └── types.ts
+├── scripts/
+│   ├── _supabase-admin.ts      # service-role client (import-only)
+│   ├── import-teamdesk.ts
+│   ├── import-jf-tags.ts
+│   └── classify.ts
+└── supabase/
+    └── schema.sql
+```

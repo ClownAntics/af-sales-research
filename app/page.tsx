@@ -1,65 +1,115 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { YearTabs } from "@/components/YearTabs";
+import { SummaryCards } from "@/components/SummaryCards";
+import { FilterBar } from "@/components/FilterBar";
+import { DesignGrid } from "@/components/DesignGrid";
+import { PatternCharts } from "@/components/PatternCharts";
+import { ThemeSummary } from "@/components/ThemeSummary";
+import type {
+  DesignFilters,
+  DesignsResponse,
+  ViewFilter,
+} from "@/lib/types";
+
+const DEFAULT_FILTERS: DesignFilters = {
+  year: "all",
+  tag: "all",
+  productType: "all",
+  themeName: "all",
+  subTheme: "all",
+  subSubTheme: "all",
+  view: "all",
+};
 
 export default function Home() {
+  const [filters, setFilters] = useState<DesignFilters>(DEFAULT_FILTERS);
+  const [data, setData] = useState<DesignsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const qs = useMemo(() => {
+    const p = new URLSearchParams();
+    if (filters.year !== "all") p.set("year", filters.year);
+    if (filters.tag !== "all") p.set("tag", filters.tag);
+    if (filters.productType !== "all") p.set("productType", filters.productType);
+    if (filters.themeName !== "all") p.set("themeName", filters.themeName);
+    if (filters.subTheme !== "all") p.set("subTheme", filters.subTheme);
+    if (filters.subSubTheme !== "all") p.set("subSubTheme", filters.subSubTheme);
+    // 'patterns' is a UI-only view; the API still returns the same designs.
+    if (filters.view !== "all" && filters.view !== "patterns") {
+      p.set("view", filters.view);
+    }
+    return p.toString();
+  }, [filters]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/designs${qs ? `?${qs}` : ""}`, { signal: controller.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(await r.text());
+        return r.json() as Promise<DesignsResponse>;
+      })
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => controller.abort();
+  }, [qs]);
+
+  const update = (next: Partial<DesignFilters>) =>
+    setFilters((f) => ({ ...f, ...next }));
+  const setView = (v: ViewFilter) => update({ view: v });
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="max-w-7xl mx-auto px-6 py-8 space-y-6 w-full">
+      <header>
+        <h1 className="text-2xl font-medium tracking-tight">AF sales research</h1>
+        <p className="text-sm text-muted">
+          Which AF designs succeeded since 2023, and what patterns explain why?
+        </p>
+      </header>
+
+      <YearTabs value={filters.year} onChange={(year) => update({ year })} />
+
+      <SummaryCards
+        summary={
+          data?.summary || { total: 0, hit: 0, solid: 0, ok: 0, weak: 0, dead: 0 }
+        }
+        view={filters.view}
+        onView={setView}
+      />
+
+      <FilterBar
+        filters={filters}
+        tags={data?.tags || []}
+        productTypes={data?.productTypes || []}
+        themeNames={data?.themeNames || []}
+        subThemes={data?.subThemes || []}
+        subSubThemes={data?.subSubThemes || []}
+        onChange={update}
+        onClear={() => setFilters(DEFAULT_FILTERS)}
+      />
+
+      {error && (
+        <div className="text-sm text-loser border border-loser/20 bg-loser/5 rounded p-3">
+          {error}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+
+      {!data && !error && <div className="text-sm text-muted">Loading…</div>}
+
+      {data && filters.view === "patterns" ? (
+        <PatternCharts designs={data.designs} />
+      ) : data && filters.view === "theme-summary" ? (
+        <ThemeSummary designs={data.designs} filters={filters} />
+      ) : data ? (
+        <DesignGrid designs={data.designs} />
+      ) : null}
+    </main>
   );
 }

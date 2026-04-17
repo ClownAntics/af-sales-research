@@ -33,6 +33,10 @@ interface CatalogAgg {
   productTypes: Set<string>;
   catalogCreatedDate: string | null; // earliest Date Created across SKUs in this family
   baseSku: string; // shortest AFGF SKU in the family (e.g. "AFGFSP0001"), used to build image URL
+  hasMonogram: boolean;     // detected from -CF/WH/single-letter suffix in catalog SKUs
+  hasPersonalized: boolean;
+  hasPreprint: boolean;
+  hasBare: boolean; // a SKU with no variant suffix exists (i.e. plain AFGFMS0085)
 }
 
 const IMAGE_URL_BASE = "https://images.clownantics.com/CA_resize_500_500/";
@@ -95,19 +99,27 @@ async function main() {
         productTypes: new Set(["garden"]),
         catalogCreatedDate: dateCreated,
         baseSku: sku.toUpperCase(),
+        hasMonogram: false,
+        hasPersonalized: false,
+        hasPreprint: false,
+        hasBare: false,
       };
       designs.set(parsed.designFamily, agg);
     } else {
       if (!agg.designName && description) agg.designName = cleanName(description);
-      // Earliest Date Created across SKUs in the family wins (the design was
-      // created when its first SKU was added to the catalog).
       if (dateCreated && (!agg.catalogCreatedDate || dateCreated < agg.catalogCreatedDate)) {
         agg.catalogCreatedDate = dateCreated;
       }
-      // Prefer the shortest SKU as the base (no monogram/preprint/personalize suffix).
       const upper = sku.toUpperCase();
       if (upper.length < agg.baseSku.length) agg.baseSku = upper;
     }
+
+    // Track which suffix variants exist in the catalog. parseSku already
+    // identifies the variant_type from the suffix.
+    if (parsed.variant === "monogram") agg.hasMonogram = true;
+    else if (parsed.variant === "personalized") agg.hasPersonalized = true;
+    else if (parsed.variant === "preprint") agg.hasPreprint = true;
+    else agg.hasBare = true;
   }
 
   console.log("Summary:");
@@ -133,6 +145,9 @@ async function main() {
     is_active: true,
     catalog_created_date: d.catalogCreatedDate,
     image_url: imageUrlForSku(d.baseSku),
+    has_monogram: d.hasMonogram,
+    has_personalized: d.hasPersonalized,
+    has_preprint: d.hasPreprint,
   }));
 
   const client = getAdminClient();

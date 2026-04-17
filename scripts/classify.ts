@@ -44,43 +44,9 @@ async function main() {
     .not("first_sale_date", "is", null);
   if (eB) throw new Error(`date_is_estimated false: ${eB.message}`);
 
-  console.log("Computing has_preprint / has_personalized / has_monogram…");
-  const { data: variants, error: e4 } = await client
-    .from("sku_variants")
-    .select("design_family, variant_type");
-  if (e4) throw new Error(`load variants: ${e4.message}`);
-
-  const flags = new Map<
-    string,
-    { preprint: boolean; personalized: boolean; monogram: boolean }
-  >();
-  for (const v of variants || []) {
-    const f = flags.get(v.design_family) || {
-      preprint: false,
-      personalized: false,
-      monogram: false,
-    };
-    if (v.variant_type === "preprint") f.preprint = true;
-    if (v.variant_type === "personalized") f.personalized = true;
-    if (v.variant_type === "monogram") f.monogram = true;
-    flags.set(v.design_family, f);
-  }
-
-  let i = 0;
-  for (const [df, f] of flags.entries()) {
-    const { error } = await client
-      .from("designs")
-      .update({
-        has_preprint: f.preprint,
-        has_personalized: f.personalized,
-        has_monogram: f.monogram,
-      })
-      .eq("design_family", df);
-    if (error) console.warn(`  ! ${df}: ${error.message}`);
-    i++;
-    if (i % 100 === 0) process.stdout.write(`  ${i}/${flags.size}\r`);
-  }
-  console.log(`  ${i}/${flags.size}`);
+  // has_* flags are now set by import-catalog.ts based on actual catalog SKU
+  // suffixes — more accurate than sales-derived flags because it covers
+  // designs that have never sold.
   console.log("\nDone.");
 }
 

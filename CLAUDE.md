@@ -57,7 +57,7 @@ The mapping is a constant in `scripts/import-teamdesk.ts`. Unknown sources are l
 - `units_total = 0` → `loser`
 
 ## Exclusions
-- Ukraine designs (description match `/ukraine/i` in TeamDesk, or any tag containing "Ukraine" in JF Shopify) — one-off event, not a repeatable pattern.
+None currently. Ukraine designs were previously filtered out (one-off 2022 fundraiser) but are now included.
 
 ## Supabase pattern
 - Browser + API route use the **anon key** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`). RLS allows public SELECT on `designs` and `sku_variants` (see `supabase/schema.sql`).

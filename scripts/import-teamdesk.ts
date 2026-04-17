@@ -66,7 +66,6 @@ async function main() {
   const unknownChannels = new Map<string, number>();
   let rows = 0;
   let skippedNoParse = 0;
-  let skippedUkraine = 0;
   let skippedChannel = 0;
 
   const parser = createReadStream(csvPath).pipe(
@@ -85,10 +84,6 @@ async function main() {
     const parsed = parseSku(rawSku);
     if (!parsed) {
       skippedNoParse++;
-      continue;
-    }
-    if (/ukraine/i.test(description)) {
-      skippedUkraine++;
       continue;
     }
     if (!(source in CHANNEL_MAP)) {
@@ -151,7 +146,6 @@ async function main() {
   console.log(`  designs:           ${designs.size}`);
   console.log(`  unique SKUs:       ${skuVariants.size}`);
   console.log(`  skipped (no AF):   ${skippedNoParse}`);
-  console.log(`  skipped (ukraine): ${skippedUkraine}`);
   console.log(`  skipped (channel): ${skippedChannel}`);
   if (unknownChannels.size > 0) {
     console.log(`  unknown channels (not skipped, not counted):`);

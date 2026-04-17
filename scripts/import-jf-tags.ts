@@ -59,15 +59,8 @@ async function main() {
   }
   console.log(`  parsed ${rows} rows (${skipped} skipped, ${byDesign.size} designs)\n`);
 
-  // Identify Ukraine designs to delete
-  const ukraineDesigns: string[] = [];
   const updates: { design_family: string; shopify_tags: string[] }[] = [];
   for (const d of byDesign.values()) {
-    const hasUkraine = Array.from(d.tags).some((t) => /ukraine/i.test(t));
-    if (hasUkraine) {
-      ukraineDesigns.push(d.designFamily);
-      continue;
-    }
     updates.push({
       design_family: d.designFamily,
       shopify_tags: Array.from(d.tags).sort(),
@@ -75,15 +68,6 @@ async function main() {
   }
 
   const client = getAdminClient();
-
-  if (ukraineDesigns.length > 0) {
-    console.log(`Deleting ${ukraineDesigns.length} Ukraine designs…`);
-    const { error } = await client
-      .from("designs")
-      .delete()
-      .in("design_family", ukraineDesigns);
-    if (error) throw new Error(`Delete failed: ${error.message}`);
-  }
 
   console.log(`Updating tags on ${updates.length} designs…`);
   // Update one-by-one so we don't clobber other columns. Postgrest doesn't

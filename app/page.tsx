@@ -25,6 +25,52 @@ const DEFAULT_FILTERS: DesignFilters = {
   view: "all",
 };
 
+function SearchBox({
+  value,
+  onChange,
+  matchCount,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  matchCount: number | null;
+}) {
+  return (
+    <div className="relative flex items-center">
+      <span className="absolute left-3 text-muted-2 pointer-events-none" aria-hidden>
+        {/* search icon (inline SVG, no icon library) */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </span>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search SKU or name"
+        className="bg-card border border-border rounded-full pl-9 pr-9 py-2 text-sm w-64 focus:outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/10 transition-all placeholder:text-muted-2"
+      />
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="absolute right-3 text-muted-2 hover:text-foreground"
+          aria-label="Clear search"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      )}
+      {matchCount !== null && (
+        <span className="ml-2 text-xs text-muted tabular-nums">
+          {matchCount} {matchCount === 1 ? "match" : "matches"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function matchesSearch(
   d: { design_family: string; design_name: string | null },
   query: string,
@@ -102,19 +148,17 @@ export default function Home() {
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-6 w-full">
       <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-5 flex-wrap">
           <div>
             <h1 className="text-2xl font-medium tracking-tight">AF sales research</h1>
             <p className="text-sm text-muted">
               Which AF designs succeeded since 2023, and what patterns explain why?
             </p>
           </div>
-          <input
-            type="search"
+          <SearchBox
             value={filters.search}
-            onChange={(e) => update({ search: e.target.value })}
-            placeholder="Search SKU or name…"
-            className="bg-card border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-foreground w-56"
+            onChange={(v) => update({ search: v })}
+            matchCount={filters.search ? filteredDesigns.length : null}
           />
         </div>
         <nav className="flex gap-3 text-xs text-muted shrink-0 pt-1">

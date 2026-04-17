@@ -102,11 +102,20 @@ export default function Home() {
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-6 w-full">
       <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-medium tracking-tight">AF sales research</h1>
-          <p className="text-sm text-muted">
-            Which AF designs succeeded since 2023, and what patterns explain why?
-          </p>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-medium tracking-tight">AF sales research</h1>
+            <p className="text-sm text-muted">
+              Which AF designs succeeded since 2023, and what patterns explain why?
+            </p>
+          </div>
+          <input
+            type="search"
+            value={filters.search}
+            onChange={(e) => update({ search: e.target.value })}
+            placeholder="Search SKU or name…"
+            className="bg-card border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-foreground w-56"
+          />
         </div>
         <nav className="flex gap-3 text-xs text-muted shrink-0 pt-1">
           <a

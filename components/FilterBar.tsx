@@ -59,16 +59,12 @@ export function FilterBar({
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      <label className="flex items-center gap-1.5 text-sm">
-        <span className="text-muted">Search:</span>
-        <input
-          type="search"
-          value={filters.search}
-          onChange={(e) => onChange({ search: e.target.value })}
-          placeholder="SKU or name"
-          className="bg-card border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-foreground w-44"
-        />
-      </label>
+      <Select
+        value={filters.view}
+        onChange={(v) => onChange({ view: v as ViewFilter })}
+        label="View"
+        options={VIEWS.map((v) => ({ value: v.value, label: v.label }))}
+      />
       <Select
         value={filters.themeName}
         onChange={(v) =>
@@ -121,12 +117,6 @@ export function FilterBar({
           { value: "all", label: "All types" },
           ...productTypes.map((p) => ({ value: p, label: p })),
         ]}
-      />
-      <Select
-        value={filters.view}
-        onChange={(v) => onChange({ view: v as ViewFilter })}
-        label="View"
-        options={VIEWS.map((v) => ({ value: v.value, label: v.label }))}
       />
       {dirty && (
         <button

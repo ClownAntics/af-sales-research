@@ -114,16 +114,14 @@ export const EVENTS: SeasonalEvent[] = [
     name: "Valentine's Day",
     emoji: "💝",
     dateInYear: fixedDate(1, 14),
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: Valentine's Day" },
-      { field: "theme_names", value: "Love & Happiness" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: Valentine's Day" }],
   },
   {
     id: "presidents-day",
     name: "Presidents' Day",
     emoji: "🇺🇸",
     dateInYear: (y) => nthWeekday(y, 1, 1, 3),
+    // No specific seasonal sub-theme exists — fall back to broad Patriotic.
     matchers: [{ field: "theme_names", value: "Patriotic" }],
   },
   {
@@ -148,10 +146,7 @@ export const EVENTS: SeasonalEvent[] = [
     name: "Easter",
     emoji: "🐰",
     dateInYear: easter,
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: Easter" },
-      { field: "theme_names", value: "Religious" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: Easter" }],
   },
   {
     id: "earth-day",
@@ -165,10 +160,7 @@ export const EVENTS: SeasonalEvent[] = [
     name: "Mother's Day",
     emoji: "💐",
     dateInYear: (y) => nthWeekday(y, 4, 0, 2),
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: Mother's Day" },
-      { field: "theme_names", value: "Family & Friends" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: Mother's Day" }],
   },
   {
     id: "memorial-day",
@@ -178,8 +170,6 @@ export const EVENTS: SeasonalEvent[] = [
     matchers: [
       { field: "sub_themes", value: "Seasonal: Memorial Day" },
       { field: "sub_themes", value: "Religious: Memorial" },
-      { field: "theme_names", value: "Patriotic" },
-      { field: "theme_names", value: "Military" },
     ],
   },
   {
@@ -187,36 +177,28 @@ export const EVENTS: SeasonalEvent[] = [
     name: "Father's Day",
     emoji: "👔",
     dateInYear: (y) => nthWeekday(y, 5, 0, 3),
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: Father's Day" },
-      { field: "theme_names", value: "Family & Friends" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: Father's Day" }],
   },
   {
     id: "summer",
     name: "Summer begins",
     emoji: "☀️",
     dateInYear: fixedDate(5, 21),
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: Summer" },
-      { field: "sub_themes", value: "Flowers: Summer & Fall Flowers" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: Summer" }],
   },
   {
     id: "july-4th",
     name: "4th of July",
     emoji: "🎆",
     dateInYear: fixedDate(6, 4),
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: 4th of July" },
-      { field: "theme_names", value: "Patriotic" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: 4th of July" }],
   },
   {
     id: "labor-day",
     name: "Labor Day",
     emoji: "🛠️",
     dateInYear: (y) => nthWeekday(y, 8, 1, 1),
+    // No specific seasonal sub-theme exists — fall back to broad Patriotic.
     matchers: [{ field: "theme_names", value: "Patriotic" }],
   },
   {
@@ -224,10 +206,7 @@ export const EVENTS: SeasonalEvent[] = [
     name: "Fall begins",
     emoji: "🍂",
     dateInYear: fixedDate(8, 22),
-    matchers: [
-      { field: "sub_themes", value: "Seasonal: Fall" },
-      { field: "sub_themes", value: "Flowers: Summer & Fall Flowers" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Seasonal: Fall" }],
   },
   {
     id: "halloween",
@@ -241,11 +220,7 @@ export const EVENTS: SeasonalEvent[] = [
     name: "Veterans Day",
     emoji: "🪖",
     dateInYear: fixedDate(10, 11),
-    matchers: [
-      { field: "sub_themes", value: "Military: Veterans" },
-      { field: "theme_names", value: "Military" },
-      { field: "theme_names", value: "Patriotic" },
-    ],
+    matchers: [{ field: "sub_themes", value: "Military: Veterans" }],
   },
   {
     id: "thanksgiving",

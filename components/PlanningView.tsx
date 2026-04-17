@@ -8,8 +8,9 @@ import {
   type SeasonalEvent,
 } from "@/lib/calendar";
 
+const MIN_DAYS = 60; // hide events closer than this — too late to design for them
 const HORIZON_DAYS = 210;
-const CLOSE_DAYS = 30; // events within this many days get the amber "close" badge
+const CLOSE_DAYS = 90; // events within this many days get the amber "close" badge
 const RECENT_DAYS = 365;
 const UNDERSERVED_MIN_DESIGNS = 5;
 const UNDERSERVED_MIN_WIN_PCT = 25;
@@ -51,7 +52,9 @@ export function PlanningView({
   );
 
   const events = useMemo<EventStat[]>(() => {
-    const upcoming = upcomingEvents(now, HORIZON_DAYS);
+    const upcoming = upcomingEvents(now, HORIZON_DAYS).filter(
+      (e) => e.daysAway >= MIN_DAYS,
+    );
     return upcoming.map(({ event, date, daysAway }) => {
       const matching = designs.filter((d) => matchesEvent(d, event));
       const hit = matching.filter((d) => d.classification === "hit").length;
@@ -102,8 +105,8 @@ export function PlanningView({
   return (
     <div className="space-y-8">
       <div className="text-sm text-muted">
-        Planning view for the next <span className="text-foreground font-medium">{HORIZON_DAYS} days</span>.
-        Use this to decide what to design before each upcoming season.
+        Events <span className="text-foreground font-medium">{MIN_DAYS}–{HORIZON_DAYS} days</span> out.
+        Anything sooner is too late to design new product for.
       </div>
 
       <section className="space-y-3">

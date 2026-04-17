@@ -25,9 +25,18 @@ interface VariantSku {
 function variantSkus(design: Design): VariantSku[] {
   const body = design.design_family.replace(/^AF/, "");
   const types = design.product_types || [];
-  // Monogram designs don't have a bare SKU — only per-letter SKUs (A..Z).
-  // Use "A" as the canonical variant for both display and image URL.
-  const mono = design.has_monogram ? "A" : "";
+  // Some designs don't have a bare SKU — only suffix variants exist:
+  //   monogram      → per-letter SKUs (use "A" as canonical)
+  //   personalized  → "-CF" suffix
+  //   preprint      → "WH" suffix
+  // Pick the most specific suffix in priority order.
+  const suffix = design.has_monogram
+    ? "A"
+    : design.has_personalized
+      ? "-CF"
+      : design.has_preprint
+        ? "WH"
+        : "";
   const mk = (sku: string, label: string): VariantSku => ({
     sku,
     label,
@@ -37,8 +46,8 @@ function variantSkus(design: Design): VariantSku[] {
   // vast majority of designs, even when only one has recorded sales. Broken
   // images on the rare exception are an acceptable trade for completeness.
   // Banner only when product_types explicitly includes it (rare).
-  const out: VariantSku[] = [mk(`AFGF${body}${mono}`, ""), mk(`AFHF${body}${mono}`, "house")];
-  if (types.includes("garden-banner")) out.push(mk(`AFGB${body}${mono}`, "banner"));
+  const out: VariantSku[] = [mk(`AFGF${body}${suffix}`, ""), mk(`AFHF${body}${suffix}`, "house")];
+  if (types.includes("garden-banner")) out.push(mk(`AFGB${body}${suffix}`, "banner"));
   return out;
 }
 

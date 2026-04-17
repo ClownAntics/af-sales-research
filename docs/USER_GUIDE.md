@@ -54,11 +54,42 @@ Click any summary card to filter the grid to just that band.
 
 Each tile shows:
 
-- **Multiple images** at the top — one per variant (garden / house / banner). Click any image to open the full-res file.
+- **Garden flag image** at the top. Click to open the full-res file on clownantics.com.
 - **Design name**
-- **Variant SKUs** in monospace — `AFGFMS0278 / AFHFMS0278 house`. Click any SKU to open the JF Shopify admin search for that product.
-- **Units · per year** — lifetime units and time-adjusted velocity. `120 units · 24/yr` is more impressive than `120 units · 4/yr`.
-- **Date** — when the design was created. A `★` prefix means "no sales yet — date is when SKU was added to the catalog."
+- **Variant SKUs** in monospace — e.g. `AFGFMS0278 / AFHFMS0278`. Click any SKU to open the JF Shopify admin search for that product.
+- **Units · per year** — lifetime units and time-adjusted velocity (see "How sales are calculated" below).
+- **Date** — when the design was added to the TeamDesk catalog (Date Created).
+
+---
+
+## How sales are calculated
+
+Two numbers per tile: **total units** and **units per year**. Here's how each is built.
+
+### Total units
+A sum of every invoice line item for that design, across:
+- **Every SKU variant** of the design family — garden (AFGF), house (AFHF), banner (AFGB), plus any preprint (`WH`), personalized (`-CF`), and monogram (letter) suffix variants.
+- **Every sales channel we track** — FL (Flagsrus.org), JF (JustForFunFlags.com), FLAMZ (Amazon US), FL FBA (Amazon FBA), FL WFS + FL Walmart (merged into one Walmart bucket), AF Etsy + JF Etsy (merged).
+- **The date window Jan 1 2023 → today.**
+
+Skipped channels: `CA` (Canada wholesale) and `FLAMZ CAN` (Amazon Canada) — both excluded per the channel mapping.
+
+**Important caveat**: the invoice export only goes back to Jan 1 2023. Designs that were already selling before 2023 don't have their pre-2023 sales counted — their "total units" reflects the 2023+ window only, not lifetime.
+
+### Units per year (velocity)
+```
+clock_start      = catalog_created_date (preferred)
+                   or first_sale_date (fallback for ~71 house-only designs)
+days_since_start = max(30, today − clock_start in days)
+rate             = total_units ÷ (days_since_start ÷ 365.25)
+```
+
+Floored at 30 days so a brand-new design with a few quick sales doesn't show an absurd rate like "500/yr" in its first week.
+
+**Why velocity matters**: a 2020 design with 287 lifetime units (~47/yr over 6 years) is performing very differently than a 2024 design with the same 287 units (~133/yr over 2 years). The "/yr" number normalizes for how long the design has been on sale, which is what matters when comparing designs.
+
+### Classification thresholds
+The Hit / Solid / OK / Weak / Dead bands (see "What the bands mean" above) come from percentiles of your actual catalog distribution, not arbitrary numbers. The Hit band captures the top ~6%, so when a design is a Hit it's genuinely above the pack — not just "sold more than five."
 
 ---
 

@@ -25,6 +25,9 @@ interface VariantSku {
 function variantSkus(design: Design): VariantSku[] {
   const body = design.design_family.replace(/^AF/, "");
   const types = design.product_types || [];
+  // Monogram designs don't have a bare SKU — only per-letter SKUs (A..Z).
+  // Use "A" as the canonical variant for both display and image URL.
+  const mono = design.has_monogram ? "A" : "";
   const mk = (sku: string, label: string): VariantSku => ({
     sku,
     label,
@@ -34,8 +37,8 @@ function variantSkus(design: Design): VariantSku[] {
   // vast majority of designs, even when only one has recorded sales. Broken
   // images on the rare exception are an acceptable trade for completeness.
   // Banner only when product_types explicitly includes it (rare).
-  const out: VariantSku[] = [mk(`AFGF${body}`, ""), mk(`AFHF${body}`, "house")];
-  if (types.includes("garden-banner")) out.push(mk(`AFGB${body}`, "banner"));
+  const out: VariantSku[] = [mk(`AFGF${body}${mono}`, ""), mk(`AFHF${body}${mono}`, "house")];
+  if (types.includes("garden-banner")) out.push(mk(`AFGB${body}${mono}`, "banner"));
   return out;
 }
 

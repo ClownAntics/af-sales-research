@@ -40,7 +40,8 @@ export function FilterBar({
     filters.subTheme !== "all" ||
     filters.subSubTheme !== "all" ||
     filters.view !== "all" ||
-    filters.year !== "all";
+    filters.year !== "all" ||
+    filters.search !== "";
 
   // Sub-theme dropdown is filtered by the active themeName.
   // Sub-sub-theme dropdown is filtered by the active subTheme (or themeName).
@@ -58,6 +59,16 @@ export function FilterBar({
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
+      <label className="flex items-center gap-1.5 text-sm">
+        <span className="text-muted">Search:</span>
+        <input
+          type="search"
+          value={filters.search}
+          onChange={(e) => onChange({ search: e.target.value })}
+          placeholder="SKU or name"
+          className="bg-card border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-foreground w-44"
+        />
+      </label>
       <Select
         value={filters.themeName}
         onChange={(v) =>

@@ -21,14 +21,41 @@ const DEFAULT_FILTERS: DesignFilters = {
   themeName: "all",
   subTheme: "all",
   subSubTheme: "all",
+  search: "",
   view: "all",
 };
+
+function matchesSearch(
+  d: { design_family: string; design_name: string | null },
+  query: string,
+): boolean {
+  if (!query) return true;
+  // Normalize both sides: lowercase, strip non-alphanumeric so "AFGF MS 0278"
+  // matches "AFGFMS0278" and users can be sloppy with spaces/dashes.
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const q = norm(query);
+  if (!q) return true;
+  const body = d.design_family.replace(/^AF/, "");
+  // Check: exact family, each constructed SKU, and the design name.
+  const haystack = [
+    d.design_family,
+    `AFGF${body}`,
+    `AFHF${body}`,
+    `AFGB${body}`,
+    d.design_name || "",
+  ]
+    .map(norm)
+    .join(" ");
+  return haystack.includes(q);
+}
 
 export default function Home() {
   const [filters, setFilters] = useState<DesignFilters>(DEFAULT_FILTERS);
   const [data, setData] = useState<DesignsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Search is applied client-side only; don't include it in the API query
+  // (changing search would otherwise re-fetch from Supabase on every keystroke).
   const qs = useMemo(() => {
     const p = new URLSearchParams();
     if (filters.year !== "all") p.set("year", filters.year);
@@ -43,6 +70,12 @@ export default function Home() {
     }
     return p.toString();
   }, [filters]);
+
+  // Designs the views actually see: API result, then client-side search filter.
+  const filteredDesigns = useMemo(() => {
+    if (!data) return [];
+    return data.designs.filter((d) => matchesSearch(d, filters.search));
+  }, [data, filters.search]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -126,13 +159,13 @@ export default function Home() {
       {!data && !error && <div className="text-sm text-muted">Loading…</div>}
 
       {data && filters.view === "patterns" ? (
-        <PatternCharts designs={data.designs} />
+        <PatternCharts designs={filteredDesigns} />
       ) : data && filters.view === "theme-summary" ? (
-        <ThemeSummary designs={data.designs} filters={filters} />
+        <ThemeSummary designs={filteredDesigns} filters={filters} />
       ) : data && filters.view === "planning" ? (
-        <PlanningView designs={data.designs} onApplyFilter={update} />
+        <PlanningView designs={filteredDesigns} onApplyFilter={update} />
       ) : data ? (
-        <DesignGrid designs={data.designs} />
+        <DesignGrid designs={filteredDesigns} />
       ) : null}
     </main>
   );

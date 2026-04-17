@@ -63,6 +63,7 @@ export interface DesignFilters {
   themeName: string;    // 'all' | <Name>
   subTheme: string;     // 'all' | 'Name: Sub'
   subSubTheme: string;  // 'all' | 'Name: Sub: SubSub'
+  search: string;       // free-text: SKU, design_family, or design_name substring
   view: ViewFilter;
 }
 

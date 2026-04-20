@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import Image from "next/image";
 import type { Design, MonthlyPoint } from "@/lib/types";
 
 const MONTHS_WINDOW = 24; // past 2 years
@@ -43,10 +42,6 @@ function gardenSku(design: Design): string {
   return `AFGF${body}${suffix}`;
 }
 
-function imageUrlFor(sku: string): string {
-  return `https://images.clownantics.com/CA_resize_500_500/${sku.toLowerCase()}.jpg`;
-}
-
 export function DetailModal({
   design,
   onClose,
@@ -79,7 +74,6 @@ export function DetailModal({
   const totalInWindow = series.reduce((s, p) => s + p.u, 0);
 
   const sku = gardenSku(design);
-  const imgUrl = imageUrlFor(sku);
 
   return (
     <div
@@ -90,7 +84,7 @@ export function DetailModal({
       aria-label={design.design_name || design.design_family}
     >
       <div
-        className="bg-card border border-border rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto"
+        className="bg-card border border-border rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-5 pt-4 pb-2 gap-4 border-b border-border">
@@ -124,26 +118,7 @@ export function DetailModal({
           </button>
         </div>
 
-        <div className="grid md:grid-cols-[260px,1fr] gap-5 p-5">
-          {/* Image */}
-          <div>
-            <a
-              href={imgUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block aspect-square relative bg-zinc-50 rounded-lg overflow-hidden border border-border"
-            >
-              <Image
-                src={imgUrl}
-                alt={design.design_name || design.design_family}
-                fill
-                sizes="260px"
-                className="object-cover"
-                unoptimized
-              />
-            </a>
-          </div>
-
+        <div className="p-5">
           {/* Chart */}
           <div className="space-y-2 min-w-0">
             <div className="flex items-baseline justify-between">
@@ -173,6 +148,8 @@ export function DetailModal({
   );
 }
 
+const CHART_HEIGHT_PX = 200;
+
 function MonthlyBars({
   series,
   maxU,
@@ -185,29 +162,28 @@ function MonthlyBars({
   const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
   return (
     <div>
-      <div className="flex items-end gap-[3px] h-40">
+      <div
+        className="flex items-end gap-[3px]"
+        style={{ height: `${CHART_HEIGHT_PX}px` }}
+      >
         {series.map((p) => {
-          const h = Math.max(2, (p.u / maxU) * 100);
+          // Pixel-based height so bars render regardless of flex parent sizing.
+          const h = Math.max(2, Math.round((p.u / maxU) * CHART_HEIGHT_PX));
           const isCurrent = p.m === currentMonth;
           return (
             <div
               key={p.m}
-              className="flex-1 flex flex-col items-center justify-end"
+              className={[
+                "flex-1 rounded-t-sm transition-colors hover:brightness-110",
+                isCurrent ? "bg-emerald-400" : "bg-emerald-600",
+              ].join(" ")}
+              style={{ height: `${h}px` }}
               title={`${labelFor(p.m)}: ${p.u.toLocaleString()} units${isCurrent ? " (partial)" : ""}`}
-            >
-              <div
-                style={{ height: `${h}%` }}
-                className={[
-                  "w-full rounded-t-sm",
-                  isCurrent ? "bg-emerald-400" : "bg-emerald-600",
-                  "transition-colors hover:brightness-110",
-                ].join(" ")}
-              />
-            </div>
+            />
           );
         })}
       </div>
-      {/* Month ticks — only show jan + jul labels to avoid crowding */}
+      {/* Month ticks — only show Jan + Jul to avoid crowding */}
       <div className="flex gap-[3px] mt-1">
         {series.map((p) => {
           const [, mm] = p.m.split("-");

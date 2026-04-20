@@ -8,7 +8,9 @@ import { DesignGrid } from "@/components/DesignGrid";
 import { PatternCharts } from "@/components/PatternCharts";
 import { ThemeSummary } from "@/components/ThemeSummary";
 import { PlanningView } from "@/components/PlanningView";
+import { DetailModal } from "@/components/DetailModal";
 import type {
+  Design,
   DesignFilters,
   DesignsResponse,
   ViewFilter,
@@ -99,6 +101,7 @@ export default function Home() {
   const [filters, setFilters] = useState<DesignFilters>(DEFAULT_FILTERS);
   const [data, setData] = useState<DesignsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Design | null>(null);
 
   // Search is applied client-side only; don't include it in the API query
   // (changing search would otherwise re-fetch from Supabase on every keystroke).
@@ -218,8 +221,16 @@ export default function Home() {
       ) : data && filters.view === "planning" ? (
         <PlanningView designs={filteredDesigns} onApplyFilter={update} />
       ) : data ? (
-        <DesignGrid designs={filteredDesigns} />
+        <DesignGrid designs={filteredDesigns} onOpenDetail={setDetail} />
       ) : null}
+
+      {detail && (
+        <DetailModal
+          key={detail.design_family}
+          design={detail}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </main>
   );
 }

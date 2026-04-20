@@ -27,6 +27,13 @@ export interface Design {
   has_personalized: boolean;
   has_monogram: boolean;
   classification: Classification | null;
+  /** Per-month units, sorted ascending. Zero-sales months omitted. */
+  monthly_sales?: MonthlyPoint[] | null;
+}
+
+export interface MonthlyPoint {
+  m: string; // 'YYYY-MM'
+  u: number;
 }
 
 export interface SkuVariant {

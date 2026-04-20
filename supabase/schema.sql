@@ -44,6 +44,12 @@ alter table designs
   add column if not exists effective_date date
   generated always as (coalesce(catalog_created_date, first_sale_date)) stored;
 
+-- Per-design monthly sales series. Populated by scripts/import-monthly-sales.ts
+-- Shape: [{m: 'YYYY-MM', u: units}, ...] sorted ascending. Months with zero
+-- sales are omitted; the UI fills gaps as zero bars to keep the axis continuous.
+alter table designs
+  add column if not exists monthly_sales jsonb;
+
 create index if not exists idx_classification  on designs(classification);
 create index if not exists idx_first_sale      on designs(first_sale_date);
 create index if not exists idx_effective_date  on designs(effective_date);

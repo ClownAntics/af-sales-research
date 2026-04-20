@@ -71,7 +71,13 @@ function formatRate(rate: number | null): string {
   return `${Math.round(rate)}/yr`;
 }
 
-export function DesignCard({ design }: { design: Design }) {
+export function DesignCard({
+  design,
+  onOpenDetail,
+}: {
+  design: Design;
+  onOpenDetail?: (design: Design) => void;
+}) {
   // Always show catalog Date Created — the design's actual creation date.
   // First-sale date is misleading (it's clamped to the start of our 3-year
   // sales export window for any design that was already selling pre-2023).
@@ -81,26 +87,41 @@ export function DesignCard({ design }: { design: Design }) {
   const variants = variantSkus(design);
   const gardenVariant = variants.find((v) => v.sku.startsWith("AFGF")) || variants[0];
 
+  const imageContent = (
+    <Image
+      src={gardenVariant.imageUrl}
+      alt={design.design_name || design.design_family}
+      fill
+      sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 200px"
+      className="object-cover group-hover:opacity-90 transition-opacity"
+      unoptimized
+    />
+  );
+
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      {/* Single image — garden flag only. Other variants are still listed as
-          clickable SKU links below. */}
-      <a
-        href={gardenVariant.imageUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={`Open ${gardenVariant.sku} image`}
-        className="block aspect-square relative bg-zinc-50 group"
-      >
-        <Image
-          src={gardenVariant.imageUrl}
-          alt={design.design_name || design.design_family}
-          fill
-          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 200px"
-          className="object-cover group-hover:opacity-90 transition-opacity"
-          unoptimized
-        />
-      </a>
+      {/* Click image → open detail modal if the parent wired one in; otherwise
+          fall back to opening the full-res image in a new tab. */}
+      {onOpenDetail ? (
+        <button
+          type="button"
+          onClick={() => onOpenDetail(design)}
+          title="View sales history & detail"
+          className="block aspect-square relative bg-zinc-50 group w-full cursor-pointer"
+        >
+          {imageContent}
+        </button>
+      ) : (
+        <a
+          href={gardenVariant.imageUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open ${gardenVariant.sku} image`}
+          className="block aspect-square relative bg-zinc-50 group"
+        >
+          {imageContent}
+        </a>
+      )}
       <div className="p-3 space-y-0.5">
         <div className="text-sm leading-snug line-clamp-2 min-h-[2.5em]">
           {design.design_name || design.design_family}

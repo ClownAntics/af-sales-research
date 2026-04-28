@@ -13,6 +13,8 @@ import type {
   Design,
   DesignFilters,
   DesignsResponse,
+  MonthRange,
+  SummaryCounts,
   ViewFilter,
 } from "@/lib/types";
 
@@ -25,7 +27,26 @@ const DEFAULT_FILTERS: DesignFilters = {
   subSubTheme: "all",
   search: "",
   view: "all",
+  monthRange: null,
 };
+
+/** True if month-of-year `m` (1–12) falls inside [start,end], wrapping at year-end. */
+function monthInRange(m: number, r: MonthRange): boolean {
+  return r.start <= r.end
+    ? m >= r.start && m <= r.end
+    : m >= r.start || m <= r.end;
+}
+
+function hasSalesInMonthRange(d: Design, r: MonthRange): boolean {
+  if (!d.monthly_sales || d.monthly_sales.length === 0) return false;
+  for (const point of d.monthly_sales) {
+    if (point.u <= 0) continue;
+    const m = parseInt(point.m.slice(5, 7), 10);
+    if (!Number.isFinite(m)) continue;
+    if (monthInRange(m, r)) return true;
+  }
+  return false;
+}
 
 function SearchBox({
   value,
@@ -103,8 +124,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<Design | null>(null);
 
-  // Search is applied client-side only; don't include it in the API query
-  // (changing search would otherwise re-fetch from Supabase on every keystroke).
+  // Search and monthRange are applied client-side only; don't include them in
+  // the API query (search would otherwise re-fetch on every keystroke, and
+  // monthRange filters per-design jsonb that's already in the response).
   const qs = useMemo(() => {
     const p = new URLSearchParams();
     if (filters.year !== "all") p.set("year", filters.year);
@@ -120,11 +142,33 @@ export default function Home() {
     return p.toString();
   }, [filters]);
 
-  // Designs the views actually see: API result, then client-side search filter.
+  // Designs the views actually see: API result, then client-side search +
+  // month-range filters.
   const filteredDesigns = useMemo(() => {
     if (!data) return [];
-    return data.designs.filter((d) => matchesSearch(d, filters.search));
-  }, [data, filters.search]);
+    let rows = data.designs.filter((d) => matchesSearch(d, filters.search));
+    if (filters.monthRange) {
+      rows = rows.filter((d) => hasSalesInMonthRange(d, filters.monthRange!));
+    }
+    return rows;
+  }, [data, filters.search, filters.monthRange]);
+
+  // When a month range is active, the API summary (which is year-based) no
+  // longer matches what's on screen. Recompute counts from the filtered set,
+  // bucketing by each design's lifetime classification.
+  const displaySummary: SummaryCounts = useMemo(() => {
+    if (!filters.monthRange) {
+      return data?.summary || { total: 0, hit: 0, solid: 0, ok: 0, weak: 0, dead: 0 };
+    }
+    const s: SummaryCounts = { total: 0, hit: 0, solid: 0, ok: 0, weak: 0, dead: 0 };
+    for (const d of filteredDesigns) {
+      s.total++;
+      if (d.classification && d.classification in s) {
+        (s as unknown as Record<string, number>)[d.classification]++;
+      }
+    }
+    return s;
+  }, [data?.summary, filters.monthRange, filteredDesigns]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -185,12 +229,17 @@ export default function Home() {
         </nav>
       </header>
 
-      <YearTabs value={filters.year} onChange={(year) => update({ year })} />
+      <YearTabs
+        value={filters.year}
+        monthRange={filters.monthRange}
+        onChange={(year) => update({ year, monthRange: null })}
+        onMonthRangeChange={(monthRange) =>
+          update({ monthRange, year: monthRange ? "all" : filters.year })
+        }
+      />
 
       <SummaryCards
-        summary={
-          data?.summary || { total: 0, hit: 0, solid: 0, ok: 0, weak: 0, dead: 0 }
-        }
+        summary={displaySummary}
         view={filters.view}
         onView={setView}
       />
@@ -202,6 +251,7 @@ export default function Home() {
         themeNames={data?.themeNames || []}
         subThemes={data?.subThemes || []}
         subSubThemes={data?.subSubThemes || []}
+        designs={filteredDesigns}
         onChange={update}
         onClear={() => setFilters(DEFAULT_FILTERS)}
       />

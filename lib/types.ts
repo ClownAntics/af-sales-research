@@ -63,6 +63,12 @@ export type ViewFilter =
   | "theme-summary"
   | "planning";
 
+export interface MonthRange {
+  /** 1 = Jan … 12 = Dec */
+  start: number;
+  end: number;
+}
+
 export interface DesignFilters {
   year: string;         // 'all' | '2023' | '2024' | '2025' | '2026'
   tag: string;          // 'all' | <tag>
@@ -72,6 +78,9 @@ export interface DesignFilters {
   subSubTheme: string;  // 'all' | 'Name: Sub: SubSub'
   search: string;       // free-text: SKU, design_family, or design_name substring
   view: ViewFilter;
+  /** Year-agnostic month window — keeps designs with ≥1 sale in any year whose
+   *  month-of-year falls in [start,end]. Mutually exclusive with `year`. */
+  monthRange: MonthRange | null;
 }
 
 export interface DesignsResponse {

@@ -1,6 +1,7 @@
 "use client";
 
-import type { DesignFilters, ViewFilter } from "@/lib/types";
+import type { Design, DesignFilters, ViewFilter } from "@/lib/types";
+import { downloadDesignsCsv } from "@/lib/csv-export";
 
 const VIEWS: { value: ViewFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -21,6 +22,7 @@ export function FilterBar({
   themeNames,
   subThemes,
   subSubThemes,
+  designs,
   onChange,
   onClear,
 }: {
@@ -30,6 +32,7 @@ export function FilterBar({
   themeNames: string[];
   subThemes: string[];
   subSubThemes: string[];
+  designs: Design[];
   onChange: (next: Partial<DesignFilters>) => void;
   onClear: () => void;
 }) {
@@ -41,7 +44,8 @@ export function FilterBar({
     filters.subSubTheme !== "all" ||
     filters.view !== "all" ||
     filters.year !== "all" ||
-    filters.search !== "";
+    filters.search !== "" ||
+    filters.monthRange !== null;
 
   // Sub-theme dropdown is filtered by the active themeName.
   // Sub-sub-theme dropdown is filtered by the active subTheme (or themeName).
@@ -82,10 +86,9 @@ export function FilterBar({
         label="Sub"
         options={[
           { value: "all", label: "All sub-themes" },
-          ...filteredSubThemes.map((t) => ({
-            value: t,
-            label: t.replace(/^[^:]+:\s*/, ""),
-          })),
+          ...filteredSubThemes
+            .map((t) => ({ value: t, label: t.replace(/^[^:]+:\s*/, "") }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
         ]}
       />
       <Select
@@ -94,10 +97,9 @@ export function FilterBar({
         label="Sub-sub"
         options={[
           { value: "all", label: "All sub-sub-themes" },
-          ...filteredSubSubThemes.map((t) => ({
-            value: t,
-            label: t.split(": ").slice(-1)[0],
-          })),
+          ...filteredSubSubThemes
+            .map((t) => ({ value: t, label: t.split(": ").slice(-1)[0] }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
         ]}
       />
       <Select
@@ -126,6 +128,13 @@ export function FilterBar({
           Clear
         </button>
       )}
+      <button
+        onClick={() => downloadDesignsCsv(designs, filters.view, filters.year)}
+        disabled={designs.length === 0}
+        className="text-sm px-3 py-1 rounded bg-foreground text-background hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Download CSV
+      </button>
     </div>
   );
 }

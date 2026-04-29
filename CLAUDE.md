@@ -25,7 +25,8 @@ Internal dashboard answering: *"Which AF designs succeeded since 2023, and what 
 2. **`import-teamdesk.ts`** — overlays sales onto existing rows; inserts new rows for house/banner-only designs not in the AFGF catalog. Match key is `design_family`, so house sales of a design count toward the same family as the catalog garden entry.
 3. **`import-jf-tags.ts`** — adds flat Shopify `tags`. Deletes Ukraine designs.
 4. **`import-themes.ts`** — decomposes `shopify_tags` into hierarchical `theme_names` / `sub_themes` / `sub_sub_themes` arrays by looking each tag up in the `FL Themes_zz Export View.csv` taxonomy (matched case-insensitive on `Search Term`). Tags with no matching theme are silently ignored — top-15 unmatched tags are logged at the end of the import for taxonomy maintenance.
-5. **`classify.ts`** — winner / middle / loser, `has_*` variant flags, and `date_is_estimated = (first_sale_date IS NULL)`.
+5. **`import-monthly-sales.ts`** — re-parses the same invoice CSV and aggregates units per `design_family` per calendar month into `designs.monthly_sales` jsonb (`[{m: 'YYYY-MM', u: units}, …]` ascending; zero-sales months omitted). Powers the per-design sales chart **and** the dashboard's `Months ▾` year-agnostic seasonal filter. Can run any time after invoices.
+6. **`classify.ts`** — winner / middle / loser, `has_*` variant flags, and `date_is_estimated = (first_sale_date IS NULL)`.
 
 ## Date display rule
 Dashboard year tabs filter on `effective_date` (generated column = `coalesce(catalog_created_date, first_sale_date)`). Catalog `Date Created` wins — that's when the design was added to the catalog, which we treat as proxy-creation date. First-sale fallback covers ~71 house/banner-only designs that have no AFGF catalog row.
@@ -33,6 +34,17 @@ Dashboard year tabs filter on `effective_date` (generated column = `coalesce(cat
 When `date_is_estimated` is true (no sales yet — only catalog Date Created), the card prefixes the date with `★` and italicises it.
 
 We previously interpolated estimated dates from neighboring SKU sales — abandoned because first-sale-date is a function of demand within an arbitrary 3-year sales window, not creation.
+
+## Month-range filter (`Months ▾`)
+A year-agnostic seasonal filter sitting alongside the year tabs. Picks a start and end month-of-year; designs are kept if any entry in `monthly_sales` has `MM` in `[start, end]` with units > 0. Wraps year-end (e.g. Nov→Feb covers Nov, Dec, Jan, Feb).
+
+Implementation lives in [`lib/month-range.ts`](./lib/month-range.ts) (single source of truth for `MONTH_NAMES`, `monthInRange`, `unitsInMonthRange`, `hasSalesInMonthRange`, `rangeLabel`). Filter, sort, and per-tile in-range units are all client-side — no API change needed because `monthly_sales` is already in the `select("*")` payload.
+
+Year tab and month range are mutually exclusive. When a range is active:
+- The API request omits `view` so all classifications come back; the view filter is applied client-side. This keeps every summary tile populated regardless of which classification the user clicked.
+- The grid sorts by in-range units descending (tiebreak: `design_family`).
+- Each tile shows `<in-range> in <range> · <lifetime> total` instead of `<lifetime> · <rate>/yr`.
+- The summary card recompute uses the month-range set (search applied, view ignored), bucketed by each design's lifetime classification.
 
 ## Channel mapping (TeamDesk OrderSourceCalc → designs.units_*)
 

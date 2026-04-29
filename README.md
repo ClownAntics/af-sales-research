@@ -20,14 +20,19 @@ Stack: Next.js 16 (App Router) + Tailwind v4 + Supabase. Visual target and SKU r
 Run in this order:
 
 ```bash
-npx tsx scripts/import-teamdesk.ts        # ~90k rows → designs + sku_variants
-npx tsx scripts/import-jf-tags.ts         # adds shopify_tags, deletes Ukraine designs
-npx tsx scripts/classify.ts               # sets classification + has_* flags
+npx tsx scripts/import-catalog.ts          # seeds designs from AFGF active SKUs
+npx tsx scripts/import-teamdesk.ts         # ~90k invoice rows → designs + sku_variants
+npx tsx scripts/import-jf-tags.ts          # adds shopify_tags, deletes Ukraine designs
+npx tsx scripts/import-themes.ts           # decomposes tags into theme hierarchy
+npx tsx scripts/import-monthly-sales.ts    # builds monthly_sales jsonb (powers Months ▾ filter + sales chart)
+npx tsx scripts/classify.ts                # sets classification + has_* flags
 ```
 
 CSV paths default to the absolute paths in the parent docs folder. Override by passing a path arg.
 
 > **Faster classify**: open `scripts/classify.ts` — the bottom of the file has equivalent SQL you can paste directly into the Supabase SQL editor.
+
+For end-user instructions on refreshing data (CSV exports, where files live, common errors), see [docs/DATA_UPDATE.md](./docs/DATA_UPDATE.md).
 
 ## Run
 
@@ -54,18 +59,25 @@ Then enable Vercel password protection in project settings (Phase 1 auth).
 ```
 af-sales-research/
 ├── app/
-│   ├── api/designs/route.ts    # GET /api/designs?year=&tag=&productType=&view=
+│   ├── api/designs/route.ts    # GET /api/designs?year=&tag=&productType=&view=&themeName=...
 │   ├── layout.tsx
-│   └── page.tsx                # client dashboard
-├── components/                 # YearTabs, SummaryCards, FilterBar, DesignGrid, DesignCard, PatternCharts
+│   └── page.tsx                # client dashboard (search + month-range filter live here)
+├── components/                 # YearTabs, SummaryCards, FilterBar, DesignGrid, DesignCard,
+│                               # DetailModal, PatternCharts, ThemeSummary, PlanningView
 ├── lib/
+│   ├── calendar.ts             # US holiday + season dates for the Planning view
+│   ├── csv-export.ts           # client-side CSV download for the current grid
+│   ├── month-range.ts          # year-agnostic month-range helpers (shared by YearTabs + cards + page)
 │   ├── sku-parser.ts           # pure parser — see CLAUDE.md for rules
 │   ├── supabase.ts             # anon-key client (browser + API route)
 │   └── types.ts
 ├── scripts/
-│   ├── _supabase-admin.ts      # service-role client (import-only)
+│   ├── _supabase-admin.ts          # service-role client (import-only)
+│   ├── import-catalog.ts
 │   ├── import-teamdesk.ts
 │   ├── import-jf-tags.ts
+│   ├── import-themes.ts
+│   ├── import-monthly-sales.ts     # builds designs.monthly_sales jsonb
 │   └── classify.ts
 └── supabase/
     └── schema.sql

@@ -10,7 +10,7 @@ Live URL: **https://af-sales-research.vercel.app**
 
 When you open the dashboard you'll see, top to bottom:
 
-1. **Year tabs** — All / 2023 / 2024 / 2025 / 2026
+1. **Year tabs** — All / Pre-2023 / 2023 / 2024 / 2025 / 2026 / Months ▾
 2. **Six summary cards** — Designs · Hit · Solid · OK · Weak · Dead
 3. **Filter bar** — Theme · Sub · Sub-sub · Tag · Type · View
 4. **The grid** — every matching design as a tile
@@ -46,7 +46,30 @@ Click any summary card to filter the grid to just that band.
   - **Theme summary** — sortable table grouped by theme
   - **Planning** — *the bi-weekly brainstorm view (see below)*
 - **Year tabs** — when a design was created (catalog Date Created, falls back to first sale date)
+- **Months ▾** — *seasonal filter*; see "Filtering by month range" below
 - **Clear** — wipes all filters
+
+---
+
+## Filtering by month range
+
+The **Months ▾** button to the right of the 2026 year tab opens a popover with two month dropdowns. Pick a start and end month (e.g. **May → Jun**), click **Apply**, and the dashboard re-scopes to designs that had at least one unit sold in that month-of-year **across any year**.
+
+Use cases:
+- "What sells around Memorial Day?" → pick **May–Jun** (or just **May**)
+- "What's our Christmas catalog look like?" → **Nov–Dec**
+- "What works in the dead of winter?" → **Jan–Feb**
+
+A few things to know:
+
+- **Year-agnostic.** May 2023, May 2024, and May 2025 all count toward May. The filter ignores which year a sale happened.
+- **Wrap-around supported.** Pick **Nov → Feb** and you get sales from Nov, Dec, Jan, *and* Feb.
+- **Year tabs and month range are mutually exclusive.** Picking a year clears the range; applying a range resets the year to All. (Combining the two — "May 2024 only" — isn't supported yet.)
+- **Tiles re-rank.** With a range active, the grid sorts by units sold in that window (descending), so the strongest seasonal sellers come first regardless of lifetime volume.
+- **Tiles show two numbers** — see "Reading a design tile" below.
+- **Summary cards recompute** to show how many designs in each lifetime band (Hit / Solid / OK / Weak) had at least one sale in the window. Dead designs always show 0 (they have no sales anywhere).
+
+Click **Clear** inside the popover (or the global Clear filters button) to leave the range view.
 
 ---
 
@@ -54,10 +77,12 @@ Click any summary card to filter the grid to just that band.
 
 Each tile shows:
 
-- **Garden flag image** at the top. Click to open the full-res file on clownantics.com.
+- **Garden flag image** at the top. Click to open the design detail modal with sales history chart.
 - **Design name**
 - **Variant SKUs** in monospace — e.g. `AFGFMS0278 / AFHFMS0278`. Click any SKU to open the JF Shopify admin search for that product.
-- **Units · per year** — lifetime units and time-adjusted velocity (see "How sales are calculated" below).
+- **Units** —
+  - *Default view*: lifetime units **·** per-year velocity (see "How sales are calculated" below).
+  - *With a month range active*: in-range units **·** lifetime total, e.g. `57 in May–Jun · 312 total`. The bold leading number is what the grid is sorted by.
 - **Date** — when the design was added to the TeamDesk catalog (Date Created).
 
 ---

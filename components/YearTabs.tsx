@@ -2,22 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MonthRange } from "@/lib/types";
+import { MONTH_NAMES, rangeLabel } from "@/lib/month-range";
 
 const YEARS = ["all", "pre-2023", "2023", "2024", "2025", "2026"] as const;
-
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-] as const;
 
 function labelFor(y: string): string {
   if (y === "all") return "All";
   if (y === "pre-2023") return "Pre-2023";
   return y;
-}
-
-function rangeLabel(r: MonthRange): string {
-  return r.start === r.end ? MONTHS[r.start - 1] : `${MONTHS[r.start - 1]}–${MONTHS[r.end - 1]}`;
 }
 
 export function YearTabs({
@@ -106,7 +98,7 @@ export function YearTabs({
                 onChange={(e) => setStart(Number(e.target.value))}
                 className="flex-1 bg-card border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-foreground"
               >
-                {MONTHS.map((m, i) => (
+                {MONTH_NAMES.map((m, i) => (
                   <option key={m} value={i + 1}>{m}</option>
                 ))}
               </select>
@@ -116,7 +108,7 @@ export function YearTabs({
                 onChange={(e) => setEnd(Number(e.target.value))}
                 className="flex-1 bg-card border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-foreground"
               >
-                {MONTHS.map((m, i) => (
+                {MONTH_NAMES.map((m, i) => (
                   <option key={m} value={i + 1}>{m}</option>
                 ))}
               </select>

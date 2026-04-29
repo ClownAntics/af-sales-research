@@ -13,10 +13,12 @@ import type {
   Design,
   DesignFilters,
   DesignsResponse,
-  MonthRange,
   SummaryCounts,
   ViewFilter,
 } from "@/lib/types";
+import { hasSalesInMonthRange } from "@/lib/month-range";
+
+const CLASSIFICATION_VIEWS = ["hit", "solid", "ok", "weak", "dead"] as const;
 
 const DEFAULT_FILTERS: DesignFilters = {
   year: "all",
@@ -29,24 +31,6 @@ const DEFAULT_FILTERS: DesignFilters = {
   view: "all",
   monthRange: null,
 };
-
-/** True if month-of-year `m` (1–12) falls inside [start,end], wrapping at year-end. */
-function monthInRange(m: number, r: MonthRange): boolean {
-  return r.start <= r.end
-    ? m >= r.start && m <= r.end
-    : m >= r.start || m <= r.end;
-}
-
-function hasSalesInMonthRange(d: Design, r: MonthRange): boolean {
-  if (!d.monthly_sales || d.monthly_sales.length === 0) return false;
-  for (const point of d.monthly_sales) {
-    if (point.u <= 0) continue;
-    const m = parseInt(point.m.slice(5, 7), 10);
-    if (!Number.isFinite(m)) continue;
-    if (monthInRange(m, r)) return true;
-  }
-  return false;
-}
 
 function SearchBox({
   value,
@@ -127,6 +111,8 @@ export default function Home() {
   // Search and monthRange are applied client-side only; don't include them in
   // the API query (search would otherwise re-fetch on every keystroke, and
   // monthRange filters per-design jsonb that's already in the response).
+  // Classification view is also kept off the API when monthRange is active so
+  // that summary tiles can show counts across all classifications.
   const qs = useMemo(() => {
     const p = new URLSearchParams();
     if (filters.year !== "all") p.set("year", filters.year);
@@ -136,15 +122,20 @@ export default function Home() {
     if (filters.subTheme !== "all") p.set("subTheme", filters.subTheme);
     if (filters.subSubTheme !== "all") p.set("subSubTheme", filters.subSubTheme);
     // 'patterns' is a UI-only view; the API still returns the same designs.
-    if (filters.view !== "all" && filters.view !== "patterns") {
+    if (
+      filters.view !== "all" &&
+      filters.view !== "patterns" &&
+      !filters.monthRange
+    ) {
       p.set("view", filters.view);
     }
     return p.toString();
   }, [filters]);
 
-  // Designs the views actually see: API result, then client-side search +
-  // month-range filters.
-  const filteredDesigns = useMemo(() => {
+  // Designs that pass search + monthRange (but NOT view). Used for summary
+  // recompute so all classification tiles stay populated when a range is
+  // active and the user has clicked a single-classification view tile.
+  const monthRangeFiltered = useMemo(() => {
     if (!data) return [];
     let rows = data.designs.filter((d) => matchesSearch(d, filters.search));
     if (filters.monthRange) {
@@ -153,22 +144,35 @@ export default function Home() {
     return rows;
   }, [data, filters.search, filters.monthRange]);
 
-  // When a month range is active, the API summary (which is year-based) no
-  // longer matches what's on screen. Recompute counts from the filtered set,
-  // bucketing by each design's lifetime classification.
+  // Designs the grid actually shows: monthRangeFiltered, then client-side view
+  // filter (only when monthRange is active — otherwise the API already applied
+  // it server-side).
+  const filteredDesigns = useMemo(() => {
+    if (
+      filters.monthRange &&
+      (CLASSIFICATION_VIEWS as readonly string[]).includes(filters.view)
+    ) {
+      return monthRangeFiltered.filter((d) => d.classification === filters.view);
+    }
+    return monthRangeFiltered;
+  }, [monthRangeFiltered, filters.view, filters.monthRange]);
+
+  // When a month range is active, the API summary (year-based) no longer
+  // matches what's on screen. Recompute counts from the month-range set
+  // (ignoring view), bucketing by each design's lifetime classification.
   const displaySummary: SummaryCounts = useMemo(() => {
     if (!filters.monthRange) {
       return data?.summary || { total: 0, hit: 0, solid: 0, ok: 0, weak: 0, dead: 0 };
     }
     const s: SummaryCounts = { total: 0, hit: 0, solid: 0, ok: 0, weak: 0, dead: 0 };
-    for (const d of filteredDesigns) {
+    for (const d of monthRangeFiltered) {
       s.total++;
       if (d.classification && d.classification in s) {
         (s as unknown as Record<string, number>)[d.classification]++;
       }
     }
     return s;
-  }, [data?.summary, filters.monthRange, filteredDesigns]);
+  }, [data?.summary, filters.monthRange, monthRangeFiltered]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -271,7 +275,11 @@ export default function Home() {
       ) : data && filters.view === "planning" ? (
         <PlanningView designs={filteredDesigns} onApplyFilter={update} />
       ) : data ? (
-        <DesignGrid designs={filteredDesigns} onOpenDetail={setDetail} />
+        <DesignGrid
+          designs={filteredDesigns}
+          monthRange={filters.monthRange}
+          onOpenDetail={setDetail}
+        />
       ) : null}
 
       {detail && (

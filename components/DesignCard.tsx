@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import type { Design } from "@/lib/types";
+import type { Design, MonthRange } from "@/lib/types";
+import { rangeLabel, unitsInMonthRange } from "@/lib/month-range";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -73,9 +74,11 @@ function formatRate(rate: number | null): string {
 
 export function DesignCard({
   design,
+  monthRange,
   onOpenDetail,
 }: {
   design: Design;
+  monthRange?: MonthRange | null;
   onOpenDetail?: (design: Design) => void;
 }) {
   // Always show catalog Date Created — the design's actual creation date.
@@ -83,6 +86,7 @@ export function DesignCard({
   // sales export window for any design that was already selling pre-2023).
   const displayDate = design.catalog_created_date;
   const rate = unitsPerYear(design);
+  const periodUnits = monthRange ? unitsInMonthRange(design, monthRange) : null;
 
   const variants = variantSkus(design);
   const gardenVariant = variants.find((v) => v.sku.startsWith("AFGF")) || variants[0];
@@ -144,9 +148,25 @@ export function DesignCard({
         </div>
         <div className="flex justify-between text-xs text-muted">
           <span>
-            {design.units_total.toLocaleString()} units
-            {rate !== null && rate > 0 && (
-              <span className="text-muted-2"> · {formatRate(rate)}</span>
+            {monthRange && periodUnits !== null ? (
+              <>
+                <span
+                  className="font-medium text-foreground"
+                  title={`Units sold in ${rangeLabel(monthRange)} across all years`}
+                >
+                  {periodUnits.toLocaleString()} in {rangeLabel(monthRange)}
+                </span>
+                <span className="text-muted-2">
+                  {" "}· {design.units_total.toLocaleString()} total
+                </span>
+              </>
+            ) : (
+              <>
+                {design.units_total.toLocaleString()} units
+                {rate !== null && rate > 0 && (
+                  <span className="text-muted-2"> · {formatRate(rate)}</span>
+                )}
+              </>
             )}
           </span>
           <span title="Catalog Date Created">

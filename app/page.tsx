@@ -16,7 +16,7 @@ import type {
   SummaryCounts,
   ViewFilter,
 } from "@/lib/types";
-import { hasSalesInMonthRange } from "@/lib/month-range";
+import { hasSalesInMonthRange, unitsInMonthRange } from "@/lib/month-range";
 
 const CLASSIFICATION_VIEWS = ["hit", "solid", "ok", "weak", "dead"] as const;
 
@@ -146,15 +146,34 @@ export default function Home() {
 
   // Designs the grid actually shows: monthRangeFiltered, then client-side view
   // filter (only when monthRange is active — otherwise the API already applied
-  // it server-side).
+  // it server-side). When a range is active, re-sort by in-range units so the
+  // top tiles are the strongest sellers in the selected window, not lifetime.
   const filteredDesigns = useMemo(() => {
+    let rows = monthRangeFiltered;
     if (
       filters.monthRange &&
       (CLASSIFICATION_VIEWS as readonly string[]).includes(filters.view)
     ) {
-      return monthRangeFiltered.filter((d) => d.classification === filters.view);
+      rows = rows.filter((d) => d.classification === filters.view);
     }
-    return monthRangeFiltered;
+    if (filters.monthRange) {
+      const r = filters.monthRange;
+      // Cache per-design in-range totals so the comparator stays O(1).
+      const cache = new Map<string, number>();
+      const score = (d: Design): number => {
+        let v = cache.get(d.design_family);
+        if (v === undefined) {
+          v = unitsInMonthRange(d, r);
+          cache.set(d.design_family, v);
+        }
+        return v;
+      };
+      rows = [...rows].sort((a, b) => {
+        const diff = score(b) - score(a);
+        return diff !== 0 ? diff : a.design_family.localeCompare(b.design_family);
+      });
+    }
+    return rows;
   }, [monthRangeFiltered, filters.view, filters.monthRange]);
 
   // When a month range is active, the API summary (year-based) no longer

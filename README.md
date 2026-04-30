@@ -25,6 +25,7 @@ npx tsx scripts/import-teamdesk.ts         # ~90k invoice rows → designs + sku
 npx tsx scripts/import-jf-tags.ts          # adds shopify_tags, deletes Ukraine designs
 npx tsx scripts/import-themes.ts           # decomposes tags into theme hierarchy
 npx tsx scripts/import-monthly-sales.ts    # builds monthly_sales jsonb (powers Months ▾ filter + sales chart)
+npx tsx scripts/rebuild-product-types.ts   # rebuilds designs.product_types from sku_variants (keeps Type=house honest)
 npx tsx scripts/classify.ts                # sets classification + has_* flags
 ```
 
@@ -78,6 +79,7 @@ af-sales-research/
 │   ├── import-jf-tags.ts
 │   ├── import-themes.ts
 │   ├── import-monthly-sales.ts     # builds designs.monthly_sales jsonb
+│   ├── rebuild-product-types.ts    # rebuilds designs.product_types from sku_variants
 │   └── classify.ts
 └── supabase/
     └── schema.sql

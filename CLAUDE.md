@@ -26,7 +26,8 @@ Internal dashboard answering: *"Which AF designs succeeded since 2023, and what 
 3. **`import-jf-tags.ts`** — adds flat Shopify `tags`. Deletes Ukraine designs.
 4. **`import-themes.ts`** — decomposes `shopify_tags` into hierarchical `theme_names` / `sub_themes` / `sub_sub_themes` arrays by looking each tag up in the `FL Themes_zz Export View.csv` taxonomy (matched case-insensitive on `Search Term`). Tags with no matching theme are silently ignored — top-15 unmatched tags are logged at the end of the import for taxonomy maintenance.
 5. **`import-monthly-sales.ts`** — re-parses the same invoice CSV and aggregates units per `design_family` per calendar month into `designs.monthly_sales` jsonb (`[{m: 'YYYY-MM', u: units}, …]` ascending; zero-sales months omitted). Powers the per-design sales chart **and** the dashboard's `Months ▾` year-agnostic seasonal filter. Can run any time after invoices.
-6. **`classify.ts`** — winner / middle / loser, `has_*` variant flags, and `date_is_estimated = (first_sale_date IS NULL)`.
+6. **`rebuild-product-types.ts`** — rewrites `designs.product_types` from `sku_variants` (the only trustworthy source). Must run after `import-teamdesk` because catalog seeds every AFGF row with `['garden']` only and the teamdesk upsert can't be relied on to expand the array — without this step the `Type=house` and `Type=garden-banner` filters under-report by ~99%.
+7. **`classify.ts`** — winner / middle / loser, `has_*` variant flags, and `date_is_estimated = (first_sale_date IS NULL)`.
 
 ## Date display rule
 Dashboard year tabs filter on `effective_date` (generated column = `coalesce(catalog_created_date, first_sale_date)`). Catalog `Date Created` wins — that's when the design was added to the catalog, which we treat as proxy-creation date. First-sale fallback covers ~71 house/banner-only designs that have no AFGF catalog row.

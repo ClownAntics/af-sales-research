@@ -61,7 +61,7 @@ Open a terminal in the project folder:
 cd "C:\Users\gbcab\ClownAntics Dropbox\Blake Cabot\Docs\Internet Business\200904 Clown\202604 AF Research App\af-sales-research"
 ```
 
-Then run all six scripts **in this exact order**:
+Then run all seven scripts **in this exact order**:
 
 ```bash
 npx tsx scripts/import-catalog.ts
@@ -69,6 +69,7 @@ npx tsx scripts/import-teamdesk.ts
 npx tsx scripts/import-jf-tags.ts
 npx tsx scripts/import-themes.ts
 npx tsx scripts/import-monthly-sales.ts
+npx tsx scripts/rebuild-product-types.ts
 npx tsx scripts/classify.ts
 ```
 
@@ -85,15 +86,19 @@ Total time: about 6 minutes. Each script prints a summary at the end — read th
 | `import-jf-tags.ts` | JF Shopify CSV | Adds `shopify_tags`. Deletes Ukraine designs. | ~1min |
 | `import-themes.ts` | FL Themes CSV | Decomposes shopify_tags into hierarchical theme arrays (theme_names, sub_themes, sub_sub_themes). Drops Business / Features / Size buckets. | ~1min |
 | `import-monthly-sales.ts` | Invoices CSV | Aggregates units per design per calendar month into `monthly_sales` jsonb. Powers the design-detail sales chart and the dashboard's **Months ▾** seasonal filter. | ~1min |
+| `rebuild-product-types.ts` | (DB only) | Rebuilds `designs.product_types` from `sku_variants`. Required to keep the **Type=house** and **Type=garden-banner** filters honest — catalog seeds every row with `['garden']` only, and without this step those filters silently drop ~99% of matching designs. | ~20s |
 | `classify.ts` | (DB only) | Sets classification (hit/solid/ok/weak/dead), date_is_estimated flag, and has_preprint/personalized/monogram booleans. | ~30s |
 
 **Order matters:**
 - Catalog must run before invoices (so house sales overlay onto pre-seeded garden families).
 - JF tags must run before themes (themes is built from tags).
 - Monthly sales can run any time after invoices.
+- **Rebuild product types must run after teamdesk** (teamdesk populates `sku_variants`).
 - Classify must run last (depends on the final units_total).
 
 **If you skip `import-monthly-sales.ts`**, the dashboard still works, but the **Months ▾** seasonal filter and the per-design sales chart will be empty for any design imported since the last monthly-sales run.
+
+**If you skip `rebuild-product-types.ts`**, the **Type** filter on the dashboard breaks for `house` and `garden-banner` (returns almost no results). Always run it.
 
 ---
 
@@ -138,7 +143,7 @@ If the data is corrupted and you want to start over, run this in the Supabase SQ
 truncate table sku_variants;
 truncate table designs cascade;
 ```
-Then run the six import scripts in order.
+Then run the seven import scripts in order.
 
 ---
 

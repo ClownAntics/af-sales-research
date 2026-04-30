@@ -36,15 +36,22 @@ When `date_is_estimated` is true (no sales yet — only catalog Date Created), t
 We previously interpolated estimated dates from neighboring SKU sales — abandoned because first-sale-date is a function of demand within an arbitrary 3-year sales window, not creation.
 
 ## Month-range filter (`Months ▾`)
-A year-agnostic seasonal filter sitting alongside the year tabs. Picks a start and end month-of-year; designs are kept if any entry in `monthly_sales` has `MM` in `[start, end]` with units > 0. Wraps year-end (e.g. Nov→Feb covers Nov, Dec, Jan, Feb).
+Bounded seasonal filter sitting alongside the year tabs. The popover takes:
+- A start month + end month (`end >= start` enforced — no wrap-around).
+- A set of calendar years (checkboxes; defaults to every entry in `AVAILABLE_YEARS`).
 
-Implementation lives in [`lib/month-range.ts`](./lib/month-range.ts) (single source of truth for `MONTH_NAMES`, `monthInRange`, `unitsInMonthRange`, `hasSalesInMonthRange`, `rangeLabel`). Filter, sort, and per-tile in-range units are all client-side — no API change needed because `monthly_sales` is already in the `select("*")` payload.
+`MonthRange = { start: 1-12, end: 1-12, years: number[] }`. A design is kept if `monthly_sales` has any `{m, u}` where the parsed `(year, month)` matches `years.includes(year) && start <= month <= end` with `u > 0`.
+
+Implementation lives in [`lib/month-range.ts`](./lib/month-range.ts) (single source of truth for `MONTH_NAMES`, `AVAILABLE_YEARS`, `monthInRange`, `unitsInMonthRange`, `hasSalesInMonthRange`, `rangeLabel`, `futureMonthsInRange`). Filter, sort, per-tile in-range units, and the future-month warning all run client-side — no API change needed because `monthly_sales` is already in the `select("*")` payload.
+
+`AVAILABLE_YEARS` is hardcoded `[2023, 2024, 2025, 2026]` — bump every January when a new year of invoice data starts arriving.
 
 Year tab and month range are mutually exclusive. When a range is active:
 - The API request omits `view` so all classifications come back; the view filter is applied client-side. This keeps every summary tile populated regardless of which classification the user clicked.
 - The grid sorts by in-range units descending (tiebreak: `design_family`).
-- Each tile shows `<in-range> in <range> · <lifetime> total` instead of `<lifetime> · <rate>/yr`.
+- Each tile shows `<in-range> in <label> · <lifetime> total` instead of `<lifetime> · <rate>/yr`. `<label>` is `"May–Jun"` (all years) → `"May–Jun 2024"` (single year) → `"May–Jun 2024,2025"` (subset).
 - The summary card recompute uses the month-range set (search applied, view ignored), bucketed by each design's lifetime classification.
+- The popover surfaces an inline amber warning when any selected `(year, month)` is in the future (`futureMonthsInRange`); Apply is still allowed.
 
 ## Channel mapping (TeamDesk OrderSourceCalc → designs.units_*)
 

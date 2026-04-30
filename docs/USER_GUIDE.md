@@ -53,21 +53,26 @@ Click any summary card to filter the grid to just that band.
 
 ## Filtering by month range
 
-The **Months ▾** button to the right of the 2026 year tab opens a popover with two month dropdowns. Pick a start and end month (e.g. **May → Jun**), click **Apply**, and the dashboard re-scopes to designs that had at least one unit sold in that month-of-year **across any year**.
+The **Months ▾** button to the right of the 2026 year tab opens a popover with:
+
+- **Two month dropdowns** — start month → end month
+- **Year checkboxes** — which calendar years to count
+
+Pick a window (e.g. **Nov → Dec**) and the years you care about (e.g. ☑ 2024, ☑ 2025), click **Apply**, and the dashboard re-scopes to designs that sold at least one unit in any of those (month, year) combinations.
 
 Use cases:
-- "What sells around Memorial Day?" → pick **May–Jun** (or just **May**)
-- "What's our Christmas catalog look like?" → **Nov–Dec**
-- "What works in the dead of winter?" → **Jan–Feb**
+- "What sold around Memorial Day in the last two years?" → **May–Jun**, ☑ 2024 ☑ 2025
+- "Compare Christmas 2025 against Christmas 2024" → **Nov–Dec**, toggle each year and look at the in-range numbers on the tiles
+- "What works in the dead of winter overall?" → **Jan–Feb**, all years checked
 
 A few things to know:
 
-- **Year-agnostic.** May 2023, May 2024, and May 2025 all count toward May. The filter ignores which year a sale happened.
-- **Wrap-around supported.** Pick **Nov → Feb** and you get sales from Nov, Dec, Jan, *and* Feb.
-- **Year tabs and month range are mutually exclusive.** Picking a year clears the range; applying a range resets the year to All. (Combining the two — "May 2024 only" — isn't supported yet.)
+- **No wrap-around.** End month must be after (or equal to) start month. To cross the year boundary, do it in two passes (e.g. look at Nov–Dec, then Jan–Feb).
+- **Year tabs and month range are mutually exclusive.** Picking a year tab clears the range; applying a range resets the year tab to All.
+- **Future months show a warning.** If today is April 2026 and you pick **May–Aug 2026**, the popover warns "May 2026 hasn't happened yet" because there's no data for those months — Apply still works, it just returns 0 for designs that haven't sold yet in that window.
 - **Tiles re-rank.** With a range active, the grid sorts by units sold in that window (descending), so the strongest seasonal sellers come first regardless of lifetime volume.
 - **Tiles show two numbers** — see "Reading a design tile" below.
-- **Summary cards recompute** to show how many designs in each lifetime band (Hit / Solid / OK / Weak) had at least one sale in the window. Dead designs always show 0 (they have no sales anywhere).
+- **Summary cards recompute** to show how many designs in each lifetime band (Hit / Solid / OK / Weak) had at least one sale in the window. Dead designs always show 0.
 
 Click **Clear** inside the popover (or the global Clear filters button) to leave the range view.
 

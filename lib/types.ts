@@ -64,9 +64,11 @@ export type ViewFilter =
   | "planning";
 
 export interface MonthRange {
-  /** 1 = Jan … 12 = Dec */
+  /** 1 = Jan … 12 = Dec. `end` must be >= `start` (no wrap-around). */
   start: number;
   end: number;
+  /** Calendar years to include. Empty array = no matches. */
+  years: number[];
 }
 
 export interface DesignFilters {

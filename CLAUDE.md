@@ -33,7 +33,11 @@ If you genuinely need a production build locally (e.g. profiling), pause Dropbox
 2. **`import-teamdesk.ts`** — overlays sales onto existing rows; inserts new rows for house/banner-only designs not in the AFGF catalog. Match key is `design_family`, so house sales of a design count toward the same family as the catalog garden entry.
 3. **`import-jf-tags.ts`** — adds flat Shopify `tags`. Deletes Ukraine designs.
 4. **`import-themes.ts`** — decomposes `shopify_tags` into hierarchical `theme_names` / `sub_themes` / `sub_sub_themes` arrays by looking each tag up in the `FL Themes_zz Export View.csv` taxonomy (matched case-insensitive on `Search Term`). Tags with no matching theme are silently ignored — top-15 unmatched tags are logged at the end of the import for taxonomy maintenance.
-5. **`import-monthly-sales.ts`** — re-parses the same invoice CSV and aggregates units per `design_family` per calendar month into `designs.monthly_sales` jsonb (`[{m: 'YYYY-MM', u: units}, …]` ascending; zero-sales months omitted). Powers the per-design sales chart **and** the dashboard's `Months ▾` year-agnostic seasonal filter. Can run any time after invoices.
+5. **`import-monthly-sales.ts`** — re-parses the same invoice CSV and aggregates units per `design_family` per calendar month into four jsonb columns:
+   - `monthly_sales` — family aggregate (all variants summed)
+   - `monthly_sales_garden`, `monthly_sales_house`, `monthly_sales_garden_banner` — per-variant siblings, same shape, nullable when the variant has zero sales
+   
+   Shape: `[{m: 'YYYY-MM', u: units}, …]` ascending; zero-sales months omitted. Powers the per-design sales chart, the `Months ▾` seasonal filter, and the variant-aware tile counts when `Type` is set. Variant columns sum to the family aggregate within rounding (the gap is just `unknown`-product-type units, very rare). Can run any time after invoices.
 6. **`rebuild-product-types.ts`** — rewrites `designs.product_types` from `sku_variants` (the only trustworthy source). Must run after `import-teamdesk` because catalog seeds every AFGF row with `['garden']` only and the teamdesk upsert can't be relied on to expand the array — without this step the `Type=house` and `Type=garden-banner` filters under-report by ~99%.
 7. **`classify.ts`** — winner / middle / loser, `has_*` variant flags, and `date_is_estimated = (first_sale_date IS NULL)`.
 
@@ -51,14 +55,16 @@ Bounded seasonal filter sitting alongside the year tabs. The popover takes:
 
 `MonthRange = { start: 1-12, end: 1-12, years: number[] }`. A design is kept if `monthly_sales` has any `{m, u}` where the parsed `(year, month)` matches `years.includes(year) && start <= month <= end` with `u > 0`.
 
-Implementation lives in [`lib/month-range.ts`](./lib/month-range.ts) (single source of truth for `MONTH_NAMES`, `AVAILABLE_YEARS`, `monthInRange`, `unitsInMonthRange`, `hasSalesInMonthRange`, `rangeLabel`, `futureMonthsInRange`). Filter, sort, per-tile in-range units, and the future-month warning all run client-side — no API change needed because `monthly_sales` is already in the `select("*")` payload.
+Implementation lives in [`lib/month-range.ts`](./lib/month-range.ts) (single source of truth for `MONTH_NAMES`, `AVAILABLE_YEARS`, `monthInRange`, `unitsInMonthRange`, `hasSalesInMonthRange`, `rangeLabel`, `futureMonthsInRange`, `pickMonthlySource`). Filter, sort, per-tile in-range units, and the future-month warning all run client-side — no API change needed because every `monthly_sales*` column is already in the `select("*")` payload.
+
+`pickMonthlySource(design, productType)` is the single dispatch point: when `productType === "garden" | "house" | "garden-banner"` it returns the matching `monthly_sales_*` column; for any other value (`"all"`, `undefined`, etc.) it falls back to the family aggregate. `unitsInMonthRange` and `hasSalesInMonthRange` accept an optional `productType` argument and route through it, so a single call site change in `app/page.tsx` (passing `filters.productType`) flips both the filter and the displayed counts to variant-aware. The Design type carries all four columns optionally — when the variant column is null/absent the helper falls back to the aggregate, so the dashboard never breaks if the import script hasn't run since the schema was extended.
 
 `AVAILABLE_YEARS` is hardcoded `[2023, 2024, 2025, 2026]` — bump every January when a new year of invoice data starts arriving.
 
 Year tab and month range are mutually exclusive. When a range is active:
 - The API request omits `view` so all classifications come back; the view filter is applied client-side. This keeps every summary tile populated regardless of which classification the user clicked.
 - The grid sorts by in-range units descending (tiebreak: `design_family`).
-- Each tile shows `<in-range> in <label> · <lifetime> total` instead of `<lifetime> · <rate>/yr`. `<label>` is `"May–Jun"` (all years) → `"May–Jun 2024"` (single year) → `"May–Jun 2024,2025"` (subset).
+- Each tile shows `<in-range> in <label> · <lifetime> total` instead of `<lifetime> · <rate>/yr`. `<label>` is `"May–Jun"` (all years) → `"May–Jun 2024"` (single year) → `"May–Jun 2024,2025"` (subset). When the `Type` filter narrows to a specific variant, both numbers come from the matching `monthly_sales_*` column and the tile suffixes the variant name (e.g. `"142 garden in May 2025 · 264 garden total"`).
 - The summary card recompute uses the month-range set (search applied, view ignored), bucketed by each design's lifetime classification.
 - The popover surfaces an inline amber warning when any selected `(year, month)` is in the future (`futureMonthsInRange`); Apply is still allowed.
 

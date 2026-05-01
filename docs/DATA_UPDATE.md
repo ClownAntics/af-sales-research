@@ -85,7 +85,7 @@ Total time: about 6 minutes. Each script prints a summary at the end — read th
 | `import-teamdesk.ts` | Invoices CSV | Overlays sales onto designs (units, dates, channel breakdown). Inserts house/banner-only designs not in catalog. Populates `sku_variants` table. | ~2min |
 | `import-jf-tags.ts` | JF Shopify CSV | Adds `shopify_tags`. Deletes Ukraine designs. | ~1min |
 | `import-themes.ts` | FL Themes CSV | Decomposes shopify_tags into hierarchical theme arrays (theme_names, sub_themes, sub_sub_themes). Drops Business / Features / Size buckets. | ~1min |
-| `import-monthly-sales.ts` | Invoices CSV | Aggregates units per design per calendar month into `monthly_sales` jsonb. Powers the design-detail sales chart and the dashboard's **Months ▾** seasonal filter. | ~1min |
+| `import-monthly-sales.ts` | Invoices CSV | Aggregates units per design per calendar month into four jsonb columns: `monthly_sales` (family aggregate, all variants combined) plus `monthly_sales_garden` / `monthly_sales_house` / `monthly_sales_garden_banner` (per-variant). Powers the design-detail sales chart, the **Months ▾** seasonal filter, and the variant-aware unit counts shown when the **Type** filter is set. | ~1min |
 | `rebuild-product-types.ts` | (DB only) | Rebuilds `designs.product_types` from `sku_variants`. Required to keep the **Type=house** and **Type=garden-banner** filters honest — catalog seeds every row with `['garden']` only, and without this step those filters silently drop ~99% of matching designs. | ~20s |
 | `classify.ts` | (DB only) | Sets classification (hit/solid/ok/weak/dead), date_is_estimated flag, and has_preprint/personalized/monogram booleans. | ~30s |
 
@@ -144,6 +144,9 @@ truncate table sku_variants;
 truncate table designs cascade;
 ```
 Then run the seven import scripts in order.
+
+### Schema migrations
+Most days you don't need to think about this — the `import-*` scripts only write to columns that already exist. But if a new feature adds a column (the per-variant `monthly_sales_*` columns are an example), the migration has to be applied manually because Supabase's JS client can't run DDL. The canonical schema lives in [`supabase/schema.sql`](../supabase/schema.sql); the `add column if not exists` blocks at the bottom of that file are safe to paste into the **Supabase SQL Editor** and re-run any time. If an import errors with `Could not find the 'foo' column`, that's the symptom — check schema.sql, run the missing `alter table` block in the editor, and retry.
 
 ---
 

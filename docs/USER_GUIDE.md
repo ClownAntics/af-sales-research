@@ -39,7 +39,7 @@ Click any summary card to filter the grid to just that band.
 
 - **Theme / Sub / Sub-sub** — hierarchical (Birds → Cardinals → ...). Picking a parent narrows the child dropdown.
 - **Tag** — raw Shopify tags. Use this if the theme taxonomy doesn't have what you want.
-- **Type** — garden flag, house flag, garden banner.
+- **Type** — garden flag, house flag, garden banner. Picking a specific variant **also narrows the unit numbers on each tile** to that variant only (so Type=house shows house-flag sales, not the garden+house total). Combine with **Months ▾** to answer "how many house flags did this design sell in May 2025?"
 - **View** — switches the main panel:
   - **All / Hit / Solid / OK / Weak / Dead** — grid of design tiles
   - **Patterns** — bar charts comparing Hits vs Weak/Dead
@@ -85,9 +85,10 @@ Each tile shows:
 - **Garden flag image** at the top. Click to open the design detail modal with sales history chart.
 - **Design name**
 - **Variant SKUs** in monospace — e.g. `AFGFMS0278 / AFHFMS0278`. Click any SKU to open the JF Shopify admin search for that product.
-- **Units** —
-  - *Default view*: lifetime units **·** per-year velocity (see "How sales are calculated" below).
-  - *With a month range active*: in-range units **·** lifetime total, e.g. `57 in May–Jun · 312 total`. The bold leading number is what the grid is sorted by.
+- **Units** — what's shown depends on which filters are active:
+  - *Default view*: lifetime units **·** per-year velocity, e.g. `2,430 units · 287/yr` (see "How sales are calculated" below).
+  - *With a month range active*: in-range units **·** lifetime total, e.g. `151 in May 2025 · 2,430 total`. Bold leading number = what the grid is sorted by.
+  - *With a Type filter active (garden / house / garden-banner)*: the numbers narrow to that variant only, and the word `garden` / `house` / `garden-banner` is appended so you can tell at a glance, e.g. `142 garden in May 2025 · 264 garden total`. Garden + house numbers don't overlap — the family aggregate equals their sum.
 - **Date** — when the design was added to the TeamDesk catalog (Date Created).
 
 ---

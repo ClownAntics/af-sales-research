@@ -50,6 +50,15 @@ alter table designs
 alter table designs
   add column if not exists monthly_sales jsonb;
 
+-- Per-variant monthly sales — same shape as monthly_sales but split by SKU
+-- product_type. Lets the dashboard's Type=house / Type=garden filter show
+-- variant-specific in-range units instead of the family-aggregate.
+-- Populated by scripts/import-monthly-sales.ts alongside monthly_sales.
+alter table designs
+  add column if not exists monthly_sales_garden jsonb,
+  add column if not exists monthly_sales_house jsonb,
+  add column if not exists monthly_sales_garden_banner jsonb;
+
 create index if not exists idx_classification  on designs(classification);
 create index if not exists idx_first_sale      on designs(first_sale_date);
 create index if not exists idx_effective_date  on designs(effective_date);

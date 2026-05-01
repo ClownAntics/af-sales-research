@@ -139,10 +139,12 @@ export default function Home() {
     if (!data) return [];
     let rows = data.designs.filter((d) => matchesSearch(d, filters.search));
     if (filters.monthRange) {
-      rows = rows.filter((d) => hasSalesInMonthRange(d, filters.monthRange!));
+      rows = rows.filter((d) =>
+        hasSalesInMonthRange(d, filters.monthRange!, filters.productType),
+      );
     }
     return rows;
-  }, [data, filters.search, filters.monthRange]);
+  }, [data, filters.search, filters.monthRange, filters.productType]);
 
   // Designs the grid actually shows: monthRangeFiltered, then client-side view
   // filter (only when monthRange is active — otherwise the API already applied
@@ -158,12 +160,13 @@ export default function Home() {
     }
     if (filters.monthRange) {
       const r = filters.monthRange;
+      const pt = filters.productType;
       // Cache per-design in-range totals so the comparator stays O(1).
       const cache = new Map<string, number>();
       const score = (d: Design): number => {
         let v = cache.get(d.design_family);
         if (v === undefined) {
-          v = unitsInMonthRange(d, r);
+          v = unitsInMonthRange(d, r, pt);
           cache.set(d.design_family, v);
         }
         return v;
@@ -174,7 +177,7 @@ export default function Home() {
       });
     }
     return rows;
-  }, [monthRangeFiltered, filters.view, filters.monthRange]);
+  }, [monthRangeFiltered, filters.view, filters.monthRange, filters.productType]);
 
   // When a month range is active, the API summary (year-based) no longer
   // matches what's on screen. Recompute counts from the month-range set
@@ -297,6 +300,7 @@ export default function Home() {
         <DesignGrid
           designs={filteredDesigns}
           monthRange={filters.monthRange}
+          productType={filters.productType}
           onOpenDetail={setDetail}
         />
       ) : null}

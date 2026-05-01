@@ -6,10 +6,12 @@ import { DesignCard } from "./DesignCard";
 export function DesignGrid({
   designs,
   monthRange,
+  productType,
   onOpenDetail,
 }: {
   designs: Design[];
   monthRange?: MonthRange | null;
+  productType?: string;
   onOpenDetail?: (design: Design) => void;
 }) {
   if (designs.length === 0) {
@@ -26,6 +28,7 @@ export function DesignGrid({
           key={d.design_family}
           design={d}
           monthRange={monthRange}
+          productType={productType}
           onOpenDetail={onOpenDetail}
         />
       ))}

@@ -27,8 +27,14 @@ export interface Design {
   has_personalized: boolean;
   has_monogram: boolean;
   classification: Classification | null;
-  /** Per-month units, sorted ascending. Zero-sales months omitted. */
+  /** Per-month units, sorted ascending. Zero-sales months omitted.
+   *  `monthly_sales` is the family aggregate (all variants combined).
+   *  The variant-specific siblings are nullable when no sales of that
+   *  variant exist for the design. */
   monthly_sales?: MonthlyPoint[] | null;
+  monthly_sales_garden?: MonthlyPoint[] | null;
+  monthly_sales_house?: MonthlyPoint[] | null;
+  monthly_sales_garden_banner?: MonthlyPoint[] | null;
 }
 
 export interface MonthlyPoint {

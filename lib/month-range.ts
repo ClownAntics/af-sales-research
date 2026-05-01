@@ -1,4 +1,20 @@
-import type { Design, MonthRange } from "./types";
+import type { Design, MonthlyPoint, MonthRange } from "./types";
+
+/** Pick the right monthly_sales source for a design based on the active Type
+ *  filter. Falls back to the family aggregate when no specific variant is
+ *  requested or when the variant column is missing/empty. */
+export function pickMonthlySource(
+  d: Design,
+  productType?: string,
+): MonthlyPoint[] {
+  if (productType === "garden" && d.monthly_sales_garden)
+    return d.monthly_sales_garden;
+  if (productType === "house" && d.monthly_sales_house)
+    return d.monthly_sales_house;
+  if (productType === "garden-banner" && d.monthly_sales_garden_banner)
+    return d.monthly_sales_garden_banner;
+  return d.monthly_sales || [];
+}
 
 export const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -16,13 +32,20 @@ export function monthInRange(m: number, r: MonthRange): boolean {
 }
 
 /** Sum of monthly_sales units for any month in the range, restricted to the
- *  selected calendar years. */
-export function unitsInMonthRange(d: Design, r: MonthRange): number {
-  if (!d.monthly_sales || d.monthly_sales.length === 0) return 0;
+ *  selected calendar years. When `productType` is a specific variant the
+ *  variant-specific monthly_sales column is used instead of the family
+ *  aggregate. */
+export function unitsInMonthRange(
+  d: Design,
+  r: MonthRange,
+  productType?: string,
+): number {
+  const source = pickMonthlySource(d, productType);
+  if (source.length === 0) return 0;
   if (r.years.length === 0) return 0;
   const yearSet = new Set(r.years);
   let total = 0;
-  for (const point of d.monthly_sales) {
+  for (const point of source) {
     if (point.u <= 0) continue;
     const year = parseInt(point.m.slice(0, 4), 10);
     const month = parseInt(point.m.slice(5, 7), 10);
@@ -33,8 +56,12 @@ export function unitsInMonthRange(d: Design, r: MonthRange): number {
   return total;
 }
 
-export function hasSalesInMonthRange(d: Design, r: MonthRange): boolean {
-  return unitsInMonthRange(d, r) > 0;
+export function hasSalesInMonthRange(
+  d: Design,
+  r: MonthRange,
+  productType?: string,
+): boolean {
+  return unitsInMonthRange(d, r, productType) > 0;
 }
 
 /** Short label for the popover button + tile copy.

@@ -2,7 +2,15 @@
 
 import Image from "next/image";
 import type { Design, MonthRange } from "@/lib/types";
-import { rangeLabel, unitsInMonthRange } from "@/lib/month-range";
+import { pickMonthlySource, rangeLabel, unitsInMonthRange } from "@/lib/month-range";
+
+/** Sum of all units across the variant-specific monthly_sales series. */
+function variantLifetimeUnits(d: Design, productType: string): number {
+  const source = pickMonthlySource(d, productType);
+  let total = 0;
+  for (const p of source) total += p.u;
+  return total;
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -75,10 +83,12 @@ function formatRate(rate: number | null): string {
 export function DesignCard({
   design,
   monthRange,
+  productType,
   onOpenDetail,
 }: {
   design: Design;
   monthRange?: MonthRange | null;
+  productType?: string;
   onOpenDetail?: (design: Design) => void;
 }) {
   // Always show catalog Date Created — the design's actual creation date.
@@ -86,7 +96,18 @@ export function DesignCard({
   // sales export window for any design that was already selling pre-2023).
   const displayDate = design.catalog_created_date;
   const rate = unitsPerYear(design);
-  const periodUnits = monthRange ? unitsInMonthRange(design, monthRange) : null;
+  const periodUnits = monthRange
+    ? unitsInMonthRange(design, monthRange, productType)
+    : null;
+  // When a single variant is selected, the in-range number is variant-specific
+  // and the lifetime suffix should match (lifetime per-variant total).
+  const isVariantFiltered =
+    productType === "garden" ||
+    productType === "house" ||
+    productType === "garden-banner";
+  const variantLifetime = isVariantFiltered
+    ? variantLifetimeUnits(design, productType!)
+    : null;
 
   const variants = variantSkus(design);
   const gardenVariant = variants.find((v) => v.sku.startsWith("AFGF")) || variants[0];
@@ -152,12 +173,22 @@ export function DesignCard({
               <>
                 <span
                   className="font-medium text-foreground"
-                  title={`Units sold in ${rangeLabel(monthRange)} across all years`}
+                  title={
+                    isVariantFiltered
+                      ? `${productType} units sold in ${rangeLabel(monthRange)}`
+                      : `Units sold in ${rangeLabel(monthRange)} across all variants`
+                  }
                 >
-                  {periodUnits.toLocaleString()} in {rangeLabel(monthRange)}
+                  {periodUnits.toLocaleString()}
+                  {isVariantFiltered ? ` ${productType}` : ""} in {rangeLabel(monthRange)}
                 </span>
                 <span className="text-muted-2">
-                  {" "}· {design.units_total.toLocaleString()} total
+                  {" "}·{" "}
+                  {(isVariantFiltered && variantLifetime !== null
+                    ? variantLifetime
+                    : design.units_total
+                  ).toLocaleString()}{" "}
+                  {isVariantFiltered ? `${productType} total` : "total"}
                 </span>
               </>
             ) : (

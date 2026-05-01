@@ -4,6 +4,14 @@
 
 Internal dashboard answering: *"Which AF designs succeeded since 2023, and what patterns explain why?"*
 
+## Local dev gotcha — DO NOT run `npm run build` here
+
+This repo lives inside a Dropbox-synced folder. Dropbox holds open file handles on `.next/static/chunks` and `.next/export` while syncing, which makes Next.js's pre-build cleanup fail with `EBUSY: resource busy or locked, rmdir`. The compile + page generation actually finishes ("Generating static pages 4/4 in N s") before the cleanup blows up — but the build still exits with an error, which is misleading.
+
+**Use `npx tsc --noEmit` for the pre-push sanity check instead.** It catches every type error the Vercel build would catch, runs in seconds, and doesn't touch `.next/`. Vercel itself builds in a clean environment with no Dropbox, so production builds always succeed even when local builds error.
+
+If you genuinely need a production build locally (e.g. profiling), pause Dropbox sync first.
+
 ## SKU parsing rules
 
 | SKU pattern | Example | design_family | product_type | variant |

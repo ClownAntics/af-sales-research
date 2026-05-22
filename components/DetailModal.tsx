@@ -30,8 +30,14 @@ function last24Months(now: Date, count: number): string[] {
   return out;
 }
 
+// Canonical-AF families (e.g. `AFSP0419`) expand to a real Shopify garden
+// variant (`AFGFSP0419`). For everything else, the design_family IS the
+// real Shopify SKU — never fabricate `AFGFCA52602`.
+const CANONICAL_AF = /^AF[A-Z]{2}\d{4}$/;
 function gardenSku(design: Design): string {
-  const body = design.design_family.replace(/^AF/, "");
+  const family = design.design_family;
+  if (!CANONICAL_AF.test(family)) return family;
+  const body = family.replace(/^AF/, "");
   const suffix = design.has_monogram
     ? "A"
     : design.has_personalized

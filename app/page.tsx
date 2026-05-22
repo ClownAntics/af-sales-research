@@ -88,18 +88,16 @@ function matchesSearch(
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const q = norm(query);
   if (!q) return true;
-  const body = d.design_family.replace(/^AF/, "");
-  // Check: exact family, each constructed SKU, and the design name.
-  const haystack = [
-    d.design_family,
-    `AFGF${body}`,
-    `AFHF${body}`,
-    `AFGB${body}`,
-    d.design_name || "",
-  ]
-    .map(norm)
-    .join(" ");
-  return haystack.includes(q);
+  // Only add constructed AFGF/AFHF/AFGB candidates when the family matches
+  // the canonical AF schema — otherwise we'd let a search for `AFGFCA52602`
+  // match a Carson row, which is meaningless. design_family + design_name
+  // cover the non-AF cases.
+  const haystack: string[] = [d.design_family, d.design_name || ""];
+  if (/^AF[A-Z]{2}\d{4}$/.test(d.design_family)) {
+    const body = d.design_family.replace(/^AF/, "");
+    haystack.push(`AFGF${body}`, `AFHF${body}`, `AFGB${body}`);
+  }
+  return haystack.map(norm).join(" ").includes(q);
 }
 
 export default function Home() {

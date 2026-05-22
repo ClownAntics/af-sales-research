@@ -21,24 +21,40 @@ function formatMonthYear(iso: string | null): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-// Build every variant SKU we know exists for a design family. Garden first,
-// then house, then banner — that's the natural reading order on the tile.
-// Each entry has the SKU, a short label ("" for garden = default), and the
-// full-res image URL (constructed from the SKU using the same pattern
-// TeamDesk's `imgLocationFTP500` column uses).
+// Build every variant SKU we know exists for a design family. For the
+// canonical AF schema (e.g. `AFSP0419`) we expand to garden + house +
+// optional banner — those `AFGF` / `AFHF` / `AFGB` strings ARE real
+// Shopify SKUs. For everything else (Carson `CA52602`, burlap
+// `afgfwr-b-0004`, etc.) the `design_family` IS the real SKU and we
+// show it verbatim — never fabricate `AFGFCA52602` or similar.
 interface VariantSku {
   sku: string;
   label: string;
   imageUrl: string;
 }
+const CANONICAL_AF = /^AF[A-Z]{2}\d{4}$/;
 function variantSkus(design: Design): VariantSku[] {
-  const body = design.design_family.replace(/^AF/, "");
-  const types = design.product_types || [];
-  // Some designs don't have a bare SKU — only suffix variants exist:
+  const family = design.design_family;
+  // Prefer the Shopify-stored image_url. Fall back to the legacy
+  // images.clownantics.com mirror constructed from the SKU — that pattern
+  // only matches AF SKUs and 404s for Carson / burlap, but `image_url`
+  // covers those when it's been pulled.
+  const fallbackImg = (sku: string) =>
+    `https://images.clownantics.com/CA_resize_500_500/${sku.toLowerCase()}.jpg`;
+  const mk = (sku: string, label: string): VariantSku => ({
+    sku,
+    label,
+    imageUrl: design.image_url || fallbackImg(sku),
+  });
+  // Non-canonical-AF family → design_family IS the SKU. Show as-is.
+  if (!CANONICAL_AF.test(family)) {
+    return [mk(family, "")];
+  }
+  const body = family.replace(/^AF/, "");
+  // Canonical AF: some designs only exist as suffix variants:
   //   monogram      → per-letter SKUs (use "A" as canonical)
   //   personalized  → "-CF" suffix
   //   preprint      → "WH" suffix
-  // Pick the most specific suffix in priority order.
   const suffix = design.has_monogram
     ? "A"
     : design.has_personalized
@@ -46,16 +62,10 @@ function variantSkus(design: Design): VariantSku[] {
       : design.has_preprint
         ? "WH"
         : "";
-  const mk = (sku: string, label: string): VariantSku => ({
-    sku,
-    label,
-    imageUrl: `https://images.clownantics.com/CA_resize_500_500/${sku.toLowerCase()}.jpg`,
-  });
-  // Always show garden + house — both variants exist in the catalog for the
-  // vast majority of designs, even when only one has recorded sales. Broken
-  // images on the rare exception are an acceptable trade for completeness.
+  // Garden + house both exist for the vast majority of canonical-AF designs.
   // Banner only when product_types explicitly includes it (rare).
   const out: VariantSku[] = [mk(`AFGF${body}${suffix}`, ""), mk(`AFHF${body}${suffix}`, "house")];
+  const types = design.product_types || [];
   if (types.includes("garden-banner")) out.push(mk(`AFGB${body}${suffix}`, "banner"));
   return out;
 }

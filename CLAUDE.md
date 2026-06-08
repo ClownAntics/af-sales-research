@@ -33,11 +33,17 @@ If you genuinely need a production build locally (e.g. profiling), pause Dropbox
 2. **`import-teamdesk.ts`** — overlays sales onto existing rows; inserts new rows for house/banner-only designs not in the AFGF catalog. Match key is `design_family`, so house sales of a design count toward the same family as the catalog garden entry.
 3. **`import-jf-tags.ts`** — adds flat Shopify `tags`. Deletes Ukraine designs.
 4. **`import-themes.ts`** — decomposes `shopify_tags` into hierarchical `theme_names` / `sub_themes` / `sub_sub_themes` arrays by looking each tag up in the `FL Themes_zz Export View.csv` taxonomy (matched case-insensitive on `Search Term`). Tags with no matching theme are silently ignored — top-15 unmatched tags are logged at the end of the import for taxonomy maintenance.
-5. **`import-monthly-sales.ts`** — re-parses the same invoice CSV and aggregates units per `design_family` per calendar month into four jsonb columns:
+5. **`import-monthly-sales.ts`** — **reads from Supabase, not the CSV.** Joins `td_invoice_line_item` (filtered to `SKU ilike 'AF%'`) against `td_order` on `Order Number ↔ OrderNumber`, then aggregates units per `design_family` per calendar month into four jsonb columns:
    - `monthly_sales` — family aggregate (all variants summed)
    - `monthly_sales_garden`, `monthly_sales_house`, `monthly_sales_garden_banner` — per-variant siblings, same shape, nullable when the variant has zero sales
    
-   Shape: `[{m: 'YYYY-MM', u: units}, …]` ascending; zero-sales months omitted. Powers the per-design sales chart, the `Months ▾` seasonal filter, and the variant-aware tile counts when `Type` is set. Variant columns sum to the family aggregate within rounding (the gap is just `unknown`-product-type units, very rare). Can run any time after invoices.
+   Shape: `[{m: 'YYYY-MM', u: units}, …]` ascending; zero-sales months omitted. Powers the per-design sales chart, the `Months ▾` seasonal filter, and the variant-aware tile counts when `Type` is set. Variant columns sum to the family aggregate within rounding (the gap is just `unknown`-product-type units).
+   
+   Channel filter — keeps **FL-company channels** only: `FL`, `JF`, `FLAMZ`, `FL FBA`, `FL WFS`, `FL Walmart`, `AF Etsy`, `JF Etsy`. Excludes everything CA-company (`CA`, `FP`, `AMZ*`, `FBA`, `CA Walmart`, `SHOW`, `WLS`, `FLAMZ CAN`, all the international `AMZ XX`). Also skips rows where `flagValidSale=false` (returns/cancellations).
+   
+   Because the source is live, this script picks up SKUs that haven't made it into the static CSV exports yet — running it independently of the other imports is fine, and it doesn't require fresh CSVs in the docs folder.
+   
+   **Note**: `import-teamdesk.ts` still reads the CSV, so `designs.units_total` and the per-channel `units_*` columns lag behind `monthly_sales` by however stale the CSV is. The dashboard's lifetime tile number comes from `units_total` (so it matches the per-channel breakdown), while the in-range and monthly-chart numbers come from `monthly_sales` (live). Small mismatches between the two are expected.
 6. **`rebuild-product-types.ts`** — rewrites `designs.product_types` from `sku_variants` (the only trustworthy source). Must run after `import-teamdesk` because catalog seeds every AFGF row with `['garden']` only and the teamdesk upsert can't be relied on to expand the array — without this step the `Type=house` and `Type=garden-banner` filters under-report by ~99%.
 7. **`classify.ts`** — winner / middle / loser, `has_*` variant flags, and `date_is_estimated = (first_sale_date IS NULL)`.
 

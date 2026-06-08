@@ -1,0 +1,46 @@
+# Weekly refresh of designs.monthly_sales* from Supabase invoice data.
+#
+# Runs scripts/import-monthly-sales.ts every Monday at 04:00 UTC
+# (= Sunday 11 PM ET / 8 PM PT). The script reads live from
+# td_invoice_line_item + td_order, aggregates per design / month /
+# variant, and upserts the four monthly_sales* jsonb columns onto
+# designs. The dashboard reads those columns directly, so the Months ▾
+# filter and the per-design sales chart are fresh on Monday morning.
+#
+# To change the cadence, edit the cron expression below. Format:
+#   minute hour day-of-month month day-of-week  (all UTC)
+# Examples:
+#   '0 5 * * *'    daily at 05:00 UTC
+#   '0 4 * * 1,4'  Mondays + Thursdays at 04:00 UTC
+#   '0 4 1 * *'    1st of each month at 04:00 UTC
+#
+# To run manually from the UI: GitHub repo → Actions tab → "Refresh
+# monthly sales" workflow → "Run workflow" button.
+
+name: Refresh monthly sales
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays 04:00 UTC = Sunday 11pm ET / 8pm PT
+  workflow_dispatch: {}    # also allow manual trigger
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run monthly-sales import
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx tsx scripts/import-monthly-sales.ts

@@ -1,12 +1,31 @@
 # Updating the data
 
-The dashboard does NOT auto-sync from TeamDesk or Shopify. Data refreshes only when someone manually re-runs the import scripts. Plan to do this every ~2 weeks before the brainstorm meeting.
+There are two refresh paths now — pick the right one for the situation:
 
-You'll need:
+| What you need | How |
+|---|---|
+| **Just fresher monthly sales** (Months ▾ filter, per-design chart, variant-aware tile counts) | **Automatic.** GitHub Actions runs `import-monthly-sales.ts` against live Supabase data every Monday at 04:00 UTC (Sunday 11pm ET). Nothing for you to do. To force a run sooner: GitHub repo → Actions tab → **Refresh monthly sales** → **Run workflow**. |
+| **Everything else** — new design names, themes, tags, lifetime totals, per-channel breakdowns, classifications, product types | **Manual.** Re-export the four TeamDesk + Shopify CSVs and run the full seven-step import pipeline (see below). Plan to do this every ~2 weeks before the brainstorm meeting. |
+
+For the manual path you'll need:
 - A laptop with the project cloned locally
 - Node 22+ and `npx` installed
 - The four CSV exports (see below)
 - The Supabase service role key in your `.env.local`
+
+---
+
+## Weekly monthly-sales refresh (automated)
+
+Lives at [`.github/workflows/refresh-monthly-sales.yml`](../.github/workflows/refresh-monthly-sales.yml). Runs `npx tsx scripts/import-monthly-sales.ts` on a GitHub Actions runner. Schedule, secrets, and manual-trigger button are all configured in that file — edit the `cron:` line if you want a different cadence.
+
+**Required GitHub repo secrets** (Settings → Secrets and variables → Actions):
+- `NEXT_PUBLIC_SUPABASE_URL` — the Supabase project URL (same value as `.env.local`)
+- `SUPABASE_SERVICE_ROLE_KEY` — the service-role key (same value as `.env.local`)
+
+Without those two secrets the workflow runs but exits with "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars". Add them once and forget about it.
+
+The workflow is *idempotent* — re-running it just re-aggregates and re-upserts. No harm in triggering manually whenever you want fresher data.
 
 ---
 

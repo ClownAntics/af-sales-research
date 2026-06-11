@@ -1,29 +1,30 @@
 /**
- * Seed the `designs` table from the AF garden-flag product catalog.
+ * Seed the `designs` table from the **live** product catalog in Supabase
+ * (`td_product`) — no CSV needed.
  *
  * Run FIRST (before import-teamdesk.ts), so the table contains every active
- * AFGF design — even ones that never sold. Sales data overlays on top.
+ * AF design — even ones that never sold. Sales data overlays on top.
  *
- * Filter rules (per addendum spec):
- *   - SKU starts with `AFGF` (garden flags only)
+ * Filter rules:
+ *   - SKU starts with `AFGF` (garden) or `AFHF` (house) — banner-only designs
+ *     still enter via the import-teamdesk sales overlay
  *   - Status = `Active` only (drop Inactive / Pending / CA Discontinued)
- *   - Drop `AFGFCUSTOM`
+ *   - Unparseable SKUs (AFGFCUSTOM etc.) are dropped by parseSku
  *
- * After SKU normalisation (strip GF/HF/GB + variant suffixes), ~5,200 active
- * SKUs collapse to ~2,800 design families.
+ * Why Supabase and not the CSV: the TeamDesk "AF Image Review Export" view
+ * lagged reality two ways — the exported file goes stale the moment someone
+ * adds designs, and the view itself omits some products entirely (e.g. the
+ * Jan-2026 AFGFMS0837–0842 batch never appeared in it). td_product stays
+ * current. Discovered when the 2026 year tab showed 4 designs instead of ~122.
  *
  * Usage:
- *   npx tsx scripts/import-catalog.ts                     # uses DEFAULT_CSV
- *   npx tsx scripts/import-catalog.ts ./data/foo.csv
+ *   npx tsx scripts/import-catalog.ts
  */
-import { createReadStream } from "node:fs";
-import { resolve } from "node:path";
-import { parse } from "csv-parse";
 import { parseSku } from "../lib/sku-parser";
 import { chunkedUpsert, getAdminClient } from "./_supabase-admin";
 
-const DEFAULT_CSV =
-  "C:/Users/gbcab/ClownAntics Dropbox/Blake Cabot/Docs/Internet Business/200904 Clown/202604 AF Research App/Products_AF Image Review Export.csv";
+const PAGE_SIZE = 1000;
+const PREFIXES = ["AFGF", "AFHF"] as const;
 
 interface CatalogAgg {
   designFamily: string;
@@ -32,11 +33,11 @@ interface CatalogAgg {
   designName: string; // first non-empty Description we see
   productTypes: Set<string>;
   catalogCreatedDate: string | null; // earliest Date Created across SKUs in this family
-  baseSku: string; // shortest AFGF SKU in the family (e.g. "AFGFSP0001"), used to build image URL
-  hasMonogram: boolean;     // detected from -CF/WH/single-letter suffix in catalog SKUs
+  baseSku: string; // shortest AFGF SKU (fallback: shortest AFHF), used to build image URL
+  hasMonogram: boolean;
   hasPersonalized: boolean;
   hasPreprint: boolean;
-  hasBare: boolean; // a SKU with no variant suffix exists (i.e. plain AFGFMS0085)
+  hasBare: boolean;
 }
 
 const IMAGE_URL_BASE = "https://images.clownantics.com/CA_resize_500_500/";
@@ -45,101 +46,109 @@ function imageUrlForSku(sku: string): string {
   return `${IMAGE_URL_BASE}${sku.toLowerCase()}.jpg`;
 }
 
-async function main() {
-  const csvPath = resolve(process.argv[2] || DEFAULT_CSV);
-  console.log(`Reading: ${csvPath}\n`);
+interface ProductRow {
+  SKU: string | null;
+  Description: string | null;
+  Status: string | null;
+  "Date Created": string | null;
+}
 
+async function main() {
+  const client = getAdminClient();
   const designs = new Map<string, CatalogAgg>();
   let rows = 0;
-  let skippedPrefix = 0;
-  let skippedStatus = 0;
-  let skippedCustom = 0;
   let skippedParse = 0;
 
-  const parser = createReadStream(csvPath).pipe(
-    parse({ columns: true, bom: true, skip_empty_lines: true, trim: true }),
-  );
+  for (const prefix of PREFIXES) {
+    console.log(`Reading td_product (SKU ${prefix}%, Status=Active)…`);
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data, error } = await client
+        .from("td_product")
+        .select('SKU,Description,Status,"Date Created"')
+        .ilike("SKU", `${prefix}%`)
+        .eq("Status", "Active")
+        .order("id")
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (error) throw new Error(`td_product read failed at offset ${offset}: ${error.message}`);
+      const page = (data || []) as ProductRow[];
 
-  for await (const r of parser as AsyncIterable<Record<string, string>>) {
-    rows++;
-    const sku = (r["SKU"] || "").trim();
-    const status = (r["Status"] || "").trim();
-    const description = (r["Description"] || "").trim();
-    const dateCreatedRaw = (r["Date Created"] || "").trim();
-    // "2023-12-29 07:13:55" → "2023-12-29"; empty → null
-    const dateCreated = dateCreatedRaw ? dateCreatedRaw.slice(0, 10) : null;
+      for (const r of page) {
+        rows++;
+        const sku = (r.SKU || "").trim().toUpperCase();
+        const description = (r.Description || "").trim();
+        const dateCreated = r["Date Created"] ? String(r["Date Created"]).slice(0, 10) : null;
 
-    // Garden flags only.
-    if (!sku.toUpperCase().startsWith("AFGF")) {
-      skippedPrefix++;
-      continue;
-    }
-    if (sku.toUpperCase() === "AFGFCUSTOM") {
-      skippedCustom++;
-      continue;
-    }
-    if (status !== "Active") {
-      skippedStatus++;
-      continue;
-    }
+        const parsed = parseSku(sku);
+        if (!parsed) {
+          skippedParse++;
+          continue;
+        }
 
-    const parsed = parseSku(sku);
-    if (!parsed) {
-      skippedParse++;
-      continue;
-    }
+        let agg = designs.get(parsed.designFamily);
+        if (!agg) {
+          agg = {
+            designFamily: parsed.designFamily,
+            themeCode: parsed.themeCode,
+            skuNumber: parsed.skuNumber,
+            designName: cleanName(description),
+            productTypes: new Set([parsed.productType]),
+            catalogCreatedDate: dateCreated,
+            baseSku: sku,
+            hasMonogram: false,
+            hasPersonalized: false,
+            hasPreprint: false,
+            hasBare: false,
+          };
+          designs.set(parsed.designFamily, agg);
+        } else {
+          if (!agg.designName && description) agg.designName = cleanName(description);
+          if (dateCreated && (!agg.catalogCreatedDate || dateCreated < agg.catalogCreatedDate)) {
+            agg.catalogCreatedDate = dateCreated;
+          }
+          agg.productTypes.add(parsed.productType);
+          // Image URL: prefer a garden SKU; among same-prefix candidates take the shortest.
+          const aggIsGarden = agg.baseSku.startsWith("AFGF");
+          const newIsGarden = sku.startsWith("AFGF");
+          if ((newIsGarden && !aggIsGarden) || (newIsGarden === aggIsGarden && sku.length < agg.baseSku.length)) {
+            agg.baseSku = sku;
+          }
+        }
 
-    let agg = designs.get(parsed.designFamily);
-    if (!agg) {
-      agg = {
-        designFamily: parsed.designFamily,
-        themeCode: parsed.themeCode,
-        skuNumber: parsed.skuNumber,
-        designName: cleanName(description),
-        productTypes: new Set(["garden"]),
-        catalogCreatedDate: dateCreated,
-        baseSku: sku.toUpperCase(),
-        hasMonogram: false,
-        hasPersonalized: false,
-        hasPreprint: false,
-        hasBare: false,
-      };
-      designs.set(parsed.designFamily, agg);
-    } else {
-      if (!agg.designName && description) agg.designName = cleanName(description);
-      if (dateCreated && (!agg.catalogCreatedDate || dateCreated < agg.catalogCreatedDate)) {
-        agg.catalogCreatedDate = dateCreated;
+        if (parsed.variant === "monogram") agg.hasMonogram = true;
+        else if (parsed.variant === "personalized") agg.hasPersonalized = true;
+        else if (parsed.variant === "preprint") agg.hasPreprint = true;
+        else agg.hasBare = true;
       }
-      const upper = sku.toUpperCase();
-      if (upper.length < agg.baseSku.length) agg.baseSku = upper;
-    }
 
-    // Track which suffix variants exist in the catalog. parseSku already
-    // identifies the variant_type from the suffix.
-    if (parsed.variant === "monogram") agg.hasMonogram = true;
-    else if (parsed.variant === "personalized") agg.hasPersonalized = true;
-    else if (parsed.variant === "preprint") agg.hasPreprint = true;
-    else agg.hasBare = true;
+      process.stdout.write(`  ${prefix}: ${rows} rows so far\r`);
+      if (page.length < PAGE_SIZE) break;
+    }
+    process.stdout.write("\n");
   }
 
-  console.log("Summary:");
-  console.log(`  rows read:           ${rows}`);
-  console.log(`  active garden families: ${designs.size}`);
-  console.log(`  skipped (not AFGF):  ${skippedPrefix}`);
-  console.log(`  skipped (custom):    ${skippedCustom}`);
-  console.log(`  skipped (status):    ${skippedStatus}`);
-  console.log(`  skipped (parse):     ${skippedParse}`);
+  // Distribution for sanity-checking the run.
+  const typeDist = new Map<string, number>();
+  for (const d of designs.values()) {
+    const k = [...d.productTypes].sort().join(",");
+    typeDist.set(k, (typeDist.get(k) || 0) + 1);
+  }
+
+  console.log("\nSummary:");
+  console.log(`  active SKU rows read:  ${rows}`);
+  console.log(`  design families:       ${designs.size}`);
+  console.log(`  skipped (parse):       ${skippedParse}`);
+  console.log("  product_types distribution:");
+  for (const [k, v] of [...typeDist.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${String(v).padStart(5)}  [${k}]`);
+  }
   console.log("");
 
   // Build upsert payload. We DO NOT touch units_*, first_sale_date,
-  // last_sale_date, image_url, or shopify_tags — those come from later imports.
-  // We DO set is_active=true (so previously-loaded designs whose status flipped
-  // to Active again get marked correctly), theme_code, sku_number, and product
-  // types (garden), and the design name as a fallback.
+  // last_sale_date, or shopify_tags — those come from later imports.
   const designRows = Array.from(designs.values()).map((d) => ({
     design_family: d.designFamily,
     design_name: d.designName || null,
-    product_types: Array.from(d.productTypes),
+    product_types: Array.from(d.productTypes).sort(),
     theme_code: d.themeCode,
     sku_number: d.skuNumber,
     is_active: true,
@@ -150,10 +159,9 @@ async function main() {
     has_preprint: d.hasPreprint,
   }));
 
-  const client = getAdminClient();
   console.log(`Upserting ${designRows.length} catalog designs…`);
   await chunkedUpsert("designs", designRows, client, "design_family");
-  console.log(`\nDone. Run: npx tsx scripts/import-teamdesk.ts`);
+  console.log(`\nDone. Run: npx tsx scripts/import-teamdesk.ts (full pipeline) or npx tsx scripts/classify.ts (refresh only)`);
 }
 
 function cleanName(raw: string): string {

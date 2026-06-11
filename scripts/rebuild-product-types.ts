@@ -60,18 +60,42 @@ async function main() {
   }
   console.log(`  ${byFamily.size} distinct design_families with at least one typed variant`);
 
+  // 3) MERGE with the catalog-derived product_types already on each design row.
+  //    import-catalog (td_product-sourced) knows about variants that exist in
+  //    the catalog but have never sold; sku_variants only knows what sold.
+  //    Replacing instead of merging would silently strip e.g. 'house' from a
+  //    design whose house flag hasn't sold yet.
+  console.log("Merging with existing designs.product_types…");
+  const existing = new Map<string, string[]>();
+  for (let off = 0; ; off += 1000) {
+    const { data, error } = await c
+      .from("designs")
+      .select("design_family,product_types")
+      .order("design_family")
+      .range(off, off + 999);
+    if (error) throw new Error(`designs read failed: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const d of data as { design_family: string; product_types: string[] | null }[]) {
+      if (d.product_types?.length) existing.set(d.design_family, d.product_types);
+    }
+    if (data.length < 1000) break;
+  }
+  for (const [family, types] of byFamily.entries()) {
+    for (const t of existing.get(family) || []) types.add(t);
+  }
+
   // Distribution log so we can spot-check the rebuild before it runs.
   const dist = new Map<string, number>();
   for (const types of byFamily.values()) {
     const k = [...types].sort().join(",");
     dist.set(k, (dist.get(k) || 0) + 1);
   }
-  console.log(`\nNew product_types distribution:`);
+  console.log(`\nNew product_types distribution (sales ∪ catalog):`);
   for (const [k, v] of [...dist.entries()].sort((a, b) => b[1] - a[1])) {
     console.log(`  ${String(v).padStart(4)}  [${k}]`);
   }
 
-  // 3) Upsert. We only update product_types — pass design_family as the conflict
+  // 4) Upsert. We only update product_types — pass design_family as the conflict
   //    key and Supabase merges the column into the existing row.
   const rows = [...byFamily.entries()].map(([design_family, types]) => ({
     design_family,

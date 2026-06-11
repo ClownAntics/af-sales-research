@@ -20,13 +20,13 @@ Stack: Next.js 16 (App Router) + Tailwind v4 + Supabase. Visual target and SKU r
 Run in this order:
 
 ```bash
-npx tsx scripts/import-catalog.ts          # seeds designs from AFGF active SKUs
+npx tsx scripts/import-catalog.ts          # seeds designs from live td_product (active AFGF+AFHF SKUs, no CSV)
 npx tsx scripts/import-teamdesk.ts         # ~90k invoice rows → designs + sku_variants
 npx tsx scripts/import-jf-tags.ts          # adds shopify_tags, deletes Ukraine designs
 npx tsx scripts/import-themes.ts           # decomposes tags into theme hierarchy
-npx tsx scripts/import-monthly-sales.ts    # builds monthly_sales jsonb (powers Months ▾ filter + sales chart)
-npx tsx scripts/rebuild-product-types.ts   # rebuilds designs.product_types from sku_variants (keeps Type=house honest)
-npx tsx scripts/classify.ts                # sets classification + has_* flags
+npx tsx scripts/import-monthly-sales.ts    # builds monthly_sales jsonb from live td tables (powers Months ▾ filter + chart)
+npx tsx scripts/rebuild-product-types.ts   # merges sales-derived product_types into designs (adds banner etc.)
+npx tsx scripts/classify.ts                # sets classification + date_is_estimated
 ```
 
 CSV paths default to the absolute paths in the parent docs folder. Override by passing a path arg.

@@ -4,13 +4,14 @@ There are two refresh paths now — pick the right one for the situation:
 
 | What you need | How |
 |---|---|
-| **Just fresher monthly sales** (Months ▾ filter, per-design chart, variant-aware tile counts) | **Automatic.** GitHub Actions runs `import-monthly-sales.ts` against live Supabase data every Monday at 04:00 UTC (Sunday 11pm ET). Nothing for you to do. To force a run sooner: GitHub repo → Actions tab → **Refresh monthly sales** → **Run workflow**. |
-| **Everything else** — new design names, themes, tags, lifetime totals, per-channel breakdowns, classifications, product types | **Manual.** Re-export the four TeamDesk + Shopify CSVs and run the full seven-step import pipeline (see below). Plan to do this every ~2 weeks before the brainstorm meeting. |
+| **Fresher monthly sales** (Months ▾ filter, per-design chart, variant-aware tile counts) | **Automatic.** GitHub Actions runs `import-monthly-sales.ts` against live Supabase data every Monday at 04:00 UTC (Sunday 11pm ET). Nothing for you to do. To force a run sooner: GitHub repo → Actions tab → **Refresh monthly sales** → **Run workflow**. |
+| **Newly created designs** (so they appear in the year tabs) | **Supabase-sourced, run anywhere:** `npx tsx scripts/import-catalog.ts` then `npx tsx scripts/classify.ts`. No CSV needed — reads live `td_product`. |
+| **Everything else** — themes, tags, lifetime unit totals, per-channel breakdowns | **Manual.** Re-export the three remaining CSVs and run the full seven-step import pipeline (see below). Plan to do this every ~2 weeks before the brainstorm meeting. |
 
 For the manual path you'll need:
 - A laptop with the project cloned locally
 - Node 22+ and `npx` installed
-- The four CSV exports (see below)
+- The three CSV exports (see below)
 - The Supabase service role key in your `.env.local`
 
 ---
@@ -29,28 +30,27 @@ The workflow is *idempotent* — re-running it just re-aggregates and re-upserts
 
 ---
 
-## The four CSVs
+## The three CSVs
 
-All four live in the parent docs folder:
+All three live in the parent docs folder:
 `C:\Users\gbcab\ClownAntics Dropbox\Blake Cabot\Docs\Internet Business\200904 Clown\202604 AF Research App\`
 
 | File | Source | Contents | Required columns |
 |---|---|---|---|
-| `Products_AF Image Review Export.csv` | TeamDesk | Catalog of every AF garden flag SKU | `SKU`, `Description`, `Type - Label`, `Status`, `Date Created` |
 | `Invoice Line Items_AF Image Review Export.csv` | TeamDesk | Every AF invoice line since 2023 | `Quantity`, `Order Number`, `Order Number - Date`, `Order Number - OrderSourceCalc`, `SKU`, `SKU - Description`, `SKU - Type - Label`, `SKU - Image - imgLocationFTP500` |
 | `JF Tag Export.csv` | JustForFun Shopify admin | Product tags + variant SKUs | `Title`, `Type`, `Tags`, `Variant SKU` |
 | `FL Themes_zz Export View.csv` | TeamDesk | Theme taxonomy (Theme → Sub-theme → Sub-sub-theme) | `Search Term`, `Name`, `Sub Theme`, `Sub Sub Theme`, `Level`, `isBusinessTheme?` |
+
+> `Products_AF Image Review Export.csv` is **no longer needed** — `import-catalog.ts` reads the live `td_product` table in Supabase instead. (The old TeamDesk export view also silently omitted some products, which is why the 2026 year tab once showed only 4 designs.)
 
 ---
 
 ## How to export each CSV
 
-### TeamDesk Products + Invoices
-
-Both come from the same TeamDesk database, different views.
+### TeamDesk Invoices
 
 1. Open TeamDesk → switch to the right database
-2. Open the saved view (`AF Image Review Export` for both products and invoices)
+2. Open the saved view (`AF Image Review Export` for invoice line items)
 3. Click **Export** → CSV → Save with the **exact same filename** (overwrite the old one)
 4. Move the file into the docs folder above (it'll usually save to Downloads first)
 
@@ -100,12 +100,12 @@ Total time: about 6 minutes. Each script prints a summary at the end — read th
 
 | Script | Reads | Writes | Time |
 |---|---|---|---|
-| `import-catalog.ts` | Products CSV | Seeds `designs` table with every Active garden flag (~2,800 designs). Sets theme_code, sku_number, is_active, catalog_created_date, image_url. | ~30s |
+| `import-catalog.ts` | **Supabase table `td_product`** (not a CSV) | Seeds `designs` table with every Active AFGF/AFHF design (~2,900 families). Sets theme_code, sku_number, is_active, product_types (garden/house from the catalog), catalog_created_date, image_url, has_* flags. **Runs any time without a CSV** — this is what makes newly created designs appear in the year tabs. | ~1min |
 | `import-teamdesk.ts` | Invoices CSV | Overlays sales onto designs (units, dates, channel breakdown). Inserts house/banner-only designs not in catalog. Populates `sku_variants` table. | ~2min |
 | `import-jf-tags.ts` | JF Shopify CSV | Adds `shopify_tags`. Deletes Ukraine designs. | ~1min |
 | `import-themes.ts` | FL Themes CSV | Decomposes shopify_tags into hierarchical theme arrays (theme_names, sub_themes, sub_sub_themes). Drops Business / Features / Size buckets. | ~1min |
 | `import-monthly-sales.ts` | **Supabase tables `td_invoice_line_item` + `td_order`** (not the CSV) | Aggregates units per design per calendar month into four jsonb columns: `monthly_sales` (family aggregate, all variants combined) plus `monthly_sales_garden` / `monthly_sales_house` / `monthly_sales_garden_banner` (per-variant). Filters to FL-company channels only (skips CA, FP, AMZ-anything, etc.) and skips rows with `flagValidSale=false`. Powers the design-detail sales chart, the **Months ▾** seasonal filter, and the variant-aware unit counts shown when the **Type** filter is set. **You can run this script any time, even without a fresh CSV in the docs folder** — it pulls live data straight from Supabase. | ~3min |
-| `rebuild-product-types.ts` | (DB only) | Rebuilds `designs.product_types` from `sku_variants`. Required to keep the **Type=house** and **Type=garden-banner** filters honest — catalog seeds every row with `['garden']` only, and without this step those filters silently drop ~99% of matching designs. | ~20s |
+| `rebuild-product-types.ts` | (DB only) | Rebuilds `designs.product_types` from `sku_variants` (sales-derived). Catalog now sets garden/house directly from `td_product`, but this step still adds `garden-banner` (banners aren't in the catalog import) and covers designs that only exist via the sales overlay. | ~20s |
 | `classify.ts` | (DB only) | Sets classification (hit/solid/ok/weak/dead), date_is_estimated flag, and has_preprint/personalized/monogram booleans. | ~30s |
 
 **Order matters:**

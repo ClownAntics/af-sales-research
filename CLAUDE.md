@@ -30,7 +30,7 @@ If you genuinely need a production build locally (e.g. profiling), pause Dropbox
 
 ## Import order (matters)
 1. **`import-catalog.ts`** — **reads from Supabase `td_product`, not a CSV.** Seeds `designs` from **active `AFGF` (garden) + `AFHF` (house) SKUs**. Sets `is_active`, `theme_code`, `sku_number`, `product_types` (from which prefixes exist in the catalog), `design_name`, `image_url`, `has_*` variant flags, and `catalog_created_date` (earliest `Date Created` across SKUs in the family). The old `Products_AF Image Review Export.csv` is no longer used — that TeamDesk view both went stale between exports and silently omitted some products (the Jan-2026 `AFGFMS0837–0842` batch never appeared in it), which is why the 2026 year tab once showed 4 designs instead of ~122.
-2. **`import-teamdesk.ts`** — overlays sales onto existing rows; inserts new rows for house/banner-only designs not in the AFGF catalog. Match key is `design_family`, so house sales of a design count toward the same family as the catalog garden entry.
+2. **`import-teamdesk.ts`** — **reads from Supabase (`td_invoice_line_item` ⋈ `td_order`), not a CSV.** Overlays sales onto existing rows (units_total, per-channel units_*, first/last sale dates); inserts new rows for house/banner-only designs not in the catalog; populates `sku_variants`. Match key is `design_family`, so house sales of a design count toward the same family as the catalog garden entry. Skips `flagValidSale=false` rows and orders dated before **2023-01-01** (preserves the "since 2023" window). Does NOT clobber catalog-derived `design_name`/`image_url`/`product_types` — existing values win, sales-derived product types are merged, and names for non-catalog families fall back to a `td_product` lookup.
 3. **`import-jf-tags.ts`** — adds flat Shopify `tags`. Deletes Ukraine designs.
 4. **`import-themes.ts`** — decomposes `shopify_tags` into hierarchical `theme_names` / `sub_themes` / `sub_sub_themes` arrays by looking each tag up in the `FL Themes_zz Export View.csv` taxonomy (matched case-insensitive on `Search Term`). Tags with no matching theme are silently ignored — top-15 unmatched tags are logged at the end of the import for taxonomy maintenance.
 5. **`import-monthly-sales.ts`** — **reads from Supabase, not the CSV.** Joins `td_invoice_line_item` (filtered to `SKU ilike 'AF%'`) against `td_order` on `Order Number ↔ OrderNumber`, then aggregates units per `design_family` per calendar month into four jsonb columns:
@@ -74,7 +74,9 @@ Year tab and month range are mutually exclusive. When a range is active:
 - The summary card recompute uses the month-range set (search applied, view ignored), bucketed by each design's lifetime classification.
 - The popover surfaces an inline amber warning when any selected `(year, month)` is in the future (`futureMonthsInRange`); Apply is still allowed.
 
-## Channel mapping (TeamDesk OrderSourceCalc → designs.units_*)
+## Channel mapping (OrderSourceCalc → designs.units_*)
+
+Rule of thumb: **FL-company channels are kept, CA-company channels are skipped** (per the Channels reference table — `Company` column).
 
 | Source | Column |
 |---|---|
@@ -86,15 +88,16 @@ Year tab and month range are mutually exclusive. When a range is active:
 | `FL Walmart` | `units_fl_walmart` |
 | `AF Etsy` | `units_af_etsy` |
 | `JF Etsy` | `units_af_etsy` (merged) |
-| `CA` | skipped |
-| `FLAMZ CAN` | skipped |
+| everything else | skipped — `CA`, `FP`, `AMZ`, `AMZ CAN`, international `AMZ XX`, `FBA`, `CA Walmart`, `SHOW`, `WLS`, `FLAMZ CAN` |
 
-The mapping is a constant in `scripts/import-teamdesk.ts`. Unknown sources are logged at the end of import.
+The mapping is a constant in `scripts/import-teamdesk.ts` (and a matching keep-set in `scripts/import-monthly-sales.ts`). Skipped channels are logged with unit counts at the end of each import. Rows with `flagValidSale=false` are always skipped.
 
-## Classification thresholds
-- `units_total >= 6` → `winner`
-- `units_total 1–5` → `middle`
-- `units_total = 0` → `loser`
+## Classification thresholds (set by classify.ts)
+- `units_total >= 100` → `hit`
+- `units_total 26–99` → `solid`
+- `units_total 6–25` → `ok`
+- `units_total 1–5` → `weak`
+- `units_total = 0` → `dead`
 
 ## Exclusions
 None currently. Ukraine designs were previously filtered out (one-off 2022 fundraiser) but are now included.

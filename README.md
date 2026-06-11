@@ -21,7 +21,7 @@ Run in this order:
 
 ```bash
 npx tsx scripts/import-catalog.ts          # seeds designs from live td_product (active AFGF+AFHF SKUs, no CSV)
-npx tsx scripts/import-teamdesk.ts         # ~90k invoice rows → designs + sku_variants
+npx tsx scripts/import-teamdesk.ts         # live td invoice tables → units, dates, sku_variants (no CSV)
 npx tsx scripts/import-jf-tags.ts          # adds shopify_tags, deletes Ukraine designs
 npx tsx scripts/import-themes.ts           # decomposes tags into theme hierarchy
 npx tsx scripts/import-monthly-sales.ts    # builds monthly_sales jsonb from live td tables (powers Months ▾ filter + chart)
